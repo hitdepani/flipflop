@@ -4,17 +4,11 @@ import { useRef, useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 export default function Hero() {
-  const [mounted, setMounted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
   const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
-
-  useEffect(() => {
-  setMounted(true);
-}, []);
-if (!mounted) return null;
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) 
