@@ -203,8 +203,8 @@ export default function Hero() {
               background: `${item.color}12`,
               border: `1px solid ${item.color}30`,
               color: item.color,
-              animation: `float ${4 + Math.random() * 2}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
+              animation: "float 5s ease-in-out infinite",
+animationDelay: "1s",
             }}
           >
             {item.text}
