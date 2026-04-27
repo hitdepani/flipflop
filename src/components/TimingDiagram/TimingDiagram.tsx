@@ -187,7 +187,7 @@ export default function TimingDiagram() {
   };
 
   return (
-    <section id="timing" className="relative py-24 px-6" style={{ background: "linear-gradient(180deg, #0f1419 0%, #0e1218 100%)" }}>
+    <section id="timing" className="relative py-12 md:py-16 px-3 md:px-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -196,13 +196,8 @@ export default function TimingDiagram() {
           viewport={{ once: true }}
           className="mb-10"
         >
-          <div className="section-badge mb-4">
-            <span className="w-2 h-2 rounded-full" style={{ background: "#f472b6" }} />
-            Interactive Tool
-          </div>
-          <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-4">
-            <span className="text-white">Timing </span>
-            <span style={{ color: "#f472b6", textShadow: "0 0 30px rgba(244,114,182,0.3)" }}>Diagrams</span>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+            <span className="text-white">Timing Diagrams</span>
           </h2>
           <p className="text-white/40 text-lg max-w-2xl">
             Define input sequences and watch waveforms animate across the timeline.

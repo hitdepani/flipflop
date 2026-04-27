@@ -632,7 +632,7 @@ export default function CircuitBuilder() {
   const groups = ["IO", "Gates", "Flip-Flops"];
 
   return (
-    <section id="circuit-builder" className="relative py-16 md:py-24 px-3 md:px-6 grid-bg">
+    <section id="circuit-builder" className="relative py-12 md:py-16 px-3 md:px-6">
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <motion.div
@@ -641,13 +641,8 @@ export default function CircuitBuilder() {
           viewport={{ once: true }}
           className="mb-6 md:mb-8 px-1"
         >
-          <div className="section-badge mb-3">
-            <span className="w-2 h-2 rounded-full" style={{ background: "#60a5fa" }} />
-            Interactive Tool
-          </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
-            <span className="text-white">Circuit </span>
-            <span style={{ color: "#60a5fa", textShadow: "0 0 30px rgba(96,165,250,0.3)" }}>Builder</span>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+            <span className="text-white">Circuit Builder</span>
           </h2>
           <p className="text-white/40 text-sm md:text-lg max-w-2xl">
             Drag components onto the canvas. Click output → input ports to wire. Use <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-xs font-mono">Ctrl+Z</kbd> to undo,{" "}

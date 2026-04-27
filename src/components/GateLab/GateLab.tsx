@@ -113,16 +113,11 @@ export default function GateLab() {
   const activeRow = isSingle ? inputA : inputA * 2 + inputB;
 
   return (
-    <section id="gate-lab" className="relative py-16 md:py-24 px-3 md:px-6 grid-bg">
+    <section id="gate-lab" className="relative py-12 md:py-16 px-3 md:px-6">
       <div className="max-w-[1400px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8 md:mb-12">
-          <div className="section-badge mb-3">
-            <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
-            Interactive Tool
-          </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
-            <span className="text-white">Logic Gate </span>
-            <span style={{ color: "#e8a849", textShadow: "0 0 30px rgba(232,168,73,0.3)" }}>Playground</span>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+            <span className="text-white">Logic Gate Playground</span>
           </h2>
           <p className="text-white/40 text-sm md:text-lg max-w-2xl">Select a gate, toggle inputs, and watch signal flow animate in real-time.</p>
         </motion.div>
@@ -132,7 +127,7 @@ export default function GateLab() {
           {(Object.keys(GATE_COLORS) as GateType[]).map((gate) => (
             <motion.button key={gate} onClick={() => { setSelectedGate(gate); setInputA(0); setInputB(0); }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               className="px-3 md:px-5 py-1.5 md:py-2 rounded-lg font-mono font-bold text-xs md:text-sm cursor-pointer"
-              style={{ background: selectedGate === gate ? `${GATE_COLORS[gate]}18` : "rgba(255,255,255,0.04)", border: selectedGate === gate ? `1px solid ${GATE_COLORS[gate]}60` : "1px solid rgba(255,255,255,0.08)", color: selectedGate === gate ? GATE_COLORS[gate] : "rgba(255,255,255,0.4)", boxShadow: selectedGate === gate ? `0 0 20px ${GATE_COLORS[gate]}20` : "none" }}
+              style={{ background: selectedGate === gate ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)", border: selectedGate === gate ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)", color: selectedGate === gate ? "#fff" : "rgba(255,255,255,0.4)" }}
             >{gate}</motion.button>
           ))}
         </div>

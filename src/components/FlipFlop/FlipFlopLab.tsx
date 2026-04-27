@@ -224,7 +224,7 @@ export default function FlipFlopLab() {
   const explanation = getFFExplanation(ffType, inputs, currentState.Q, prevQ, clockTick);
 
   return (
-    <section id="flipflop" className="relative py-16 md:py-24 px-3 md:px-6" style={{ background: "linear-gradient(180deg, #0f1419 0%, #111820 50%, #0f1419 100%)" }}>
+    <section id="flipflop" className="relative py-12 md:py-16 px-3 md:px-6">
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <motion.div
@@ -233,13 +233,8 @@ export default function FlipFlopLab() {
           viewport={{ once: true }}
           className="mb-12"
         >
-          <div className="section-badge mb-3">
-            <span className="w-2 h-2 rounded-full" style={{ background: "#39ff14" }} />
-            Interactive Tool
-          </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
-            <span className="text-white">Flip-Flop </span>
-            <span style={{ color: "#34d399", textShadow: "0 0 30px rgba(52,211,153,0.3)" }}>Visualizer</span>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+            <span className="text-white">Flip-Flop Visualizer</span>
           </h2>
           <p className="text-white/40 text-sm md:text-lg max-w-2xl">
             Simulate SR, JK, D, and T flip-flops with real clock pulses and state history.
@@ -256,10 +251,9 @@ export default function FlipFlopLab() {
               whileTap={{ scale: 0.95 }}
               className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl font-mono font-bold text-xs md:text-sm cursor-pointer"
               style={{
-                background: ffType === type ? `${FF_COLORS[type]}18` : "rgba(255,255,255,0.04)",
-                border: ffType === type ? `1px solid ${FF_COLORS[type]}60` : "1px solid rgba(255,255,255,0.08)",
-                color: ffType === type ? FF_COLORS[type] : "rgba(255,255,255,0.4)",
-                boxShadow: ffType === type ? `0 0 20px ${FF_COLORS[type]}18` : "none",
+                background: ffType === type ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
+                border: ffType === type ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
+                color: ffType === type ? "#fff" : "rgba(255,255,255,0.4)",
               }}
             >
               {type} Flip-Flop

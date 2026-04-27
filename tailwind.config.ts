@@ -15,10 +15,10 @@ const config: Config = {
         "accent-sky": "#60a5fa",
         "accent-orange": "#fb923c",
         "accent-teal": "#06b6d4",
-        "surface": "#06090e",
-        "surface-2": "#0d121b",
-        "surface-3": "#141b25",
-        "glass": "rgba(255,255,255,0.04)",
+        "surface": "#0b0f14",
+        "surface-2": "#131821",
+        "surface-3": "#1a222f",
+        "glass": "rgba(255,255,255,0.03)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
@@ -59,20 +59,10 @@ const config: Config = {
           "50%": { backgroundPosition: "100% 50%" },
         },
       },
-      backgroundImage: {
-        "grid-pattern":
-          "linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px)",
-        "radial-glow":
-          "radial-gradient(ellipse at center, rgba(245,158,11,0.1) 0%, transparent 70%)",
-      },
-      backgroundSize: {
-        "grid": "40px 40px",
-      },
+      backgroundImage: {},
+      backgroundSize: {},
       boxShadow: {
-        "neon-amber": "0 0 20px rgba(245,158,11,0.35), 0 0 60px rgba(245,158,11,0.12)",
-        "neon-emerald": "0 0 20px rgba(57,255,20,0.35), 0 0 60px rgba(57,255,20,0.12)",
-        "neon-rose": "0 0 20px rgba(244,114,182,0.35), 0 0 60px rgba(244,114,182,0.12)",
-        "glass": "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        "glass": "0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)",
       },
       backdropBlur: {
         "xs": "2px",
