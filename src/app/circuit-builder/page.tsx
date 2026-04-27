@@ -1,11 +1,10 @@
-"use client";
-
 import CircuitBuilder from "@/components/CircuitBuilder/CircuitBuilder";
 
+export const metadata = {
+  title: "Circuit Builder | FlipLogic",
+  description: "Drag-and-drop digital circuit builder.",
+};
+
 export default function CircuitBuilderPage() {
-  return (
-    <main className="pt-32 pb-16 min-h-screen">
-      <CircuitBuilder />
-    </main>
-  );
+  return <CircuitBuilder />;
 }

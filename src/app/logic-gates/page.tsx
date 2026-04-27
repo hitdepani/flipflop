@@ -1,11 +1,10 @@
-"use client";
-
 import GateLab from "@/components/GateLab/GateLab";
 
+export const metadata = {
+  title: "Logic Gates | FlipLogic",
+  description: "Interactive playground for logic gates.",
+};
+
 export default function LogicGatesPage() {
-  return (
-    <main className="pt-32 pb-16 min-h-screen">
-      <GateLab />
-    </main>
-  );
+  return <GateLab />;
 }

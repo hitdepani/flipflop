@@ -233,6 +233,10 @@ export default function FlipFlopLab() {
           viewport={{ once: true }}
           className="mb-12"
         >
+          <div className="section-badge mb-3">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#39ff14" }} />
+            Interactive Tool
+          </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
             <span className="text-white">Flip-Flop </span>
             <span style={{ color: "#34d399", textShadow: "0 0 30px rgba(52,211,153,0.3)" }}>Visualizer</span>

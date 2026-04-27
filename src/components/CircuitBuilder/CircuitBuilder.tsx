@@ -641,6 +641,10 @@ export default function CircuitBuilder() {
           viewport={{ once: true }}
           className="mb-6 md:mb-8 px-1"
         >
+          <div className="section-badge mb-3">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#60a5fa" }} />
+            Interactive Tool
+          </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
             <span className="text-white">Circuit </span>
             <span style={{ color: "#60a5fa", textShadow: "0 0 30px rgba(96,165,250,0.3)" }}>Builder</span>

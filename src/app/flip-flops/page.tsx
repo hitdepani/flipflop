@@ -1,11 +1,10 @@
-"use client";
-
 import FlipFlopLab from "@/components/FlipFlop/FlipFlopLab";
 
+export const metadata = {
+  title: "Flip-Flops | FlipLogic",
+  description: "Interactive flip-flop visualizer.",
+};
+
 export default function FlipFlopsPage() {
-  return (
-    <main className="pt-32 pb-16 min-h-screen">
-      <FlipFlopLab />
-    </main>
-  );
+  return <FlipFlopLab />;
 }

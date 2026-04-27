@@ -116,6 +116,10 @@ export default function GateLab() {
     <section id="gate-lab" className="relative py-16 md:py-24 px-3 md:px-6 grid-bg">
       <div className="max-w-[1400px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8 md:mb-12">
+          <div className="section-badge mb-3">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#f59e0b" }} />
+            Interactive Tool
+          </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-3">
             <span className="text-white">Logic Gate </span>
             <span style={{ color: "#e8a849", textShadow: "0 0 30px rgba(232,168,73,0.3)" }}>Playground</span>

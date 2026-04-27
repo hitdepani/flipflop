@@ -107,13 +107,14 @@ export default function Hero() {
   return (
     <section
       ref={containerRef}
+      id="hero"
       className="relative w-full min-h-[100svh] flex flex-col items-center justify-center overflow-hidden"
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, rgba(232,168,73,0.08) 0%, transparent 70%)" }} />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0f1419] pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#06090e] pointer-events-none" />
 
-      <motion.div style={{ y, opacity }} className="relative z-10 text-center px-4 md:px-6 max-w-5xl mx-auto w-full pt-16">
+      <motion.div style={{ y, opacity }} className="relative z-10 text-center px-4 md:px-6 max-w-5xl mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -140,7 +141,7 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="text-lg md:text-2xl text-gray-200 max-w-2xl mx-auto mb-8 md:mb-12 leading-relaxed px-2 font-medium"
         >
-          An immersive, interactive learning platform for{" "}
+          An immersive simulation lab for{" "}
           <span className="text-[#e8a849]">logic gates</span>,{" "}
           <span className="text-[#34d399]">flip-flops</span>, and{" "}
           <span className="text-[#60a5fa]">sequential circuits</span>.
@@ -150,26 +151,24 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center mb-10 md:mb-12"
+          className="flex flex-wrap gap-2 md:gap-3 justify-center mb-10 md:mb-12"
         >
-          <motion.a
-            href="/logic-gates"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white shadow-lg transition-all"
-            style={{ background: "linear-gradient(135deg, #e8a849, #fb923c)" }}
-          >
-            Explore Logic Gates
-          </motion.a>
-          
-          <motion.a
-            href="/circuit-builder"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white glass-card shadow-lg transition-all border border-white/10 hover:border-white/30"
-          >
-            Try Circuit Builder
-          </motion.a>
+          {sections.map((s, i) => (
+            <motion.button
+              key={s.id}
+              onClick={() => scrollTo(s.id)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 + i * 0.08 }}
+              className="flex items-center gap-1.5 md:gap-2 px-3.5 md:px-5 py-2 md:py-2.5 rounded-full glass-card text-xs md:text-sm font-semibold cursor-pointer"
+              style={{ borderColor: `${s.color}40`, color: s.color }}
+            >
+              <span>{s.icon}</span>
+              {s.label}
+            </motion.button>
+          ))}
         </motion.div>
 
         <motion.div
@@ -205,7 +204,7 @@ export default function Hero() {
               border: `1px solid ${item.color}30`,
               color: item.color,
               animation: "float 5s ease-in-out infinite",
-              animationDelay: "1s",
+animationDelay: "1s",
             }}
           >
             {item.text}

@@ -196,6 +196,10 @@ export default function TimingDiagram() {
           viewport={{ once: true }}
           className="mb-10"
         >
+          <div className="section-badge mb-4">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#f472b6" }} />
+            Interactive Tool
+          </div>
           <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-4">
             <span className="text-white">Timing </span>
             <span style={{ color: "#f472b6", textShadow: "0 0 30px rgba(244,114,182,0.3)" }}>Diagrams</span>

@@ -9,15 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        "accent-amber": "#e8a849",
-        "accent-emerald": "#34d399",
+        "accent-amber": "#f59e0b",
+        "accent-emerald": "#39ff14",
         "accent-rose": "#f472b6",
         "accent-sky": "#60a5fa",
         "accent-orange": "#fb923c",
-        "accent-teal": "#2dd4bf",
-        "surface": "#0f1419",
-        "surface-2": "#161d26",
-        "surface-3": "#1e2832",
+        "accent-teal": "#06b6d4",
+        "surface": "#06090e",
+        "surface-2": "#0d121b",
+        "surface-3": "#141b25",
         "glass": "rgba(255,255,255,0.04)",
       },
       fontFamily: {
@@ -61,16 +61,16 @@ const config: Config = {
       },
       backgroundImage: {
         "grid-pattern":
-          "linear-gradient(rgba(232,168,73,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(232,168,73,0.04) 1px, transparent 1px)",
+          "linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px)",
         "radial-glow":
-          "radial-gradient(ellipse at center, rgba(232,168,73,0.1) 0%, transparent 70%)",
+          "radial-gradient(ellipse at center, rgba(245,158,11,0.1) 0%, transparent 70%)",
       },
       backgroundSize: {
         "grid": "40px 40px",
       },
       boxShadow: {
-        "neon-amber": "0 0 20px rgba(232,168,73,0.35), 0 0 60px rgba(232,168,73,0.12)",
-        "neon-emerald": "0 0 20px rgba(52,211,153,0.35), 0 0 60px rgba(52,211,153,0.12)",
+        "neon-amber": "0 0 20px rgba(245,158,11,0.35), 0 0 60px rgba(245,158,11,0.12)",
+        "neon-emerald": "0 0 20px rgba(57,255,20,0.35), 0 0 60px rgba(57,255,20,0.12)",
         "neon-rose": "0 0 20px rgba(244,114,182,0.35), 0 0 60px rgba(244,114,182,0.12)",
         "glass": "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
       },

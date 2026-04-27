@@ -3,12 +3,12 @@
 @import "tailwindcss";
 
 :root {
-  --accent-amber: #e8a849;
-  --accent-emerald: #34d399;
+  --accent-amber: #f59e0b;
+  --accent-emerald: #39ff14;
   --accent-rose: #f472b6;
   --accent-sky: #60a5fa;
   --accent-orange: #fb923c;
-  --accent-teal: #2dd4bf;
+  --accent-teal: #06b6d4;
   --surface: #06090e;
   --surface-2: #0d121b;
   --surface-3: #141b25;
@@ -42,7 +42,7 @@ body {
   background: var(--surface);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(232, 168, 73, 0.4);
+  background: rgba(245, 158, 11, 0.4);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -51,7 +51,7 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(232, 168, 73, 0.35);
+  background: rgba(245, 158, 11, 0.35);
   color: #fff;
 }
 
@@ -70,8 +70,8 @@ body {
 
 .glass-card-hover:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(232, 168, 73, 0.4);
-  box-shadow: 0 0 30px rgba(232, 168, 73, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.15);
   transform: translateY(-2px);
 }
 
@@ -103,24 +103,24 @@ body {
 }
 
 .neon-btn-amber {
-  background: rgba(232, 168, 73, 0.1);
-  border: 1px solid rgba(232, 168, 73, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.4);
   color: var(--accent-amber);
 }
 .neon-btn-amber:hover {
-  background: rgba(232, 168, 73, 0.18);
-  box-shadow: 0 0 20px rgba(232, 168, 73, 0.25);
+  background: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
   border-color: var(--accent-amber);
 }
 
 .neon-btn-emerald {
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.4);
+  background: rgba(57, 255, 20, 0.1);
+  border: 1px solid rgba(57, 255, 20, 0.4);
   color: var(--accent-emerald);
 }
 .neon-btn-emerald:hover {
-  background: rgba(52, 211, 153, 0.18);
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.25);
+  background: rgba(57, 255, 20, 0.18);
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.25);
   border-color: var(--accent-emerald);
 }
 
@@ -158,9 +158,9 @@ body {
   cursor: pointer;
 }
 .toggle-switch.on {
-  background: rgba(52, 211, 153, 0.18);
+  background: rgba(57, 255, 20, 0.18);
   border-color: var(--accent-emerald);
-  box-shadow: 0 0 15px rgba(52, 211, 153, 0.2);
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
 }
 .toggle-thumb {
   position: absolute;
@@ -175,13 +175,13 @@ body {
 .toggle-switch.on .toggle-thumb {
   left: 31px;
   background: var(--accent-emerald);
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
 }
 
 /* ===== Grid ===== */
 .grid-bg {
-  background-image: linear-gradient(rgba(232, 168, 73, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 168, 73, 0.025) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(245, 158, 11, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.025) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -204,7 +204,7 @@ body {
 /* ===== Wire animations ===== */
 .wire-active {
   stroke: var(--accent-emerald);
-  filter: drop-shadow(0 0 4px var(--accent-emerald)) drop-shadow(0 0 8px rgba(52, 211, 153, 0.4));
+  filter: drop-shadow(0 0 4px var(--accent-emerald)) drop-shadow(0 0 8px rgba(57, 255, 20, 0.4));
 }
 .wire-inactive {
   stroke: rgba(255, 255, 255, 0.12);
@@ -212,8 +212,8 @@ body {
 }
 
 @keyframes signalPulse {
-  0% { filter: drop-shadow(0 0 8px var(--accent-emerald)) drop-shadow(0 0 20px rgba(52, 211, 153, 0.7)); }
-  100% { filter: drop-shadow(0 0 4px var(--accent-emerald)) drop-shadow(0 0 8px rgba(52, 211, 153, 0.4)); }
+  0% { filter: drop-shadow(0 0 8px var(--accent-emerald)) drop-shadow(0 0 20px rgba(57, 255, 20, 0.7)); }
+  100% { filter: drop-shadow(0 0 4px var(--accent-emerald)) drop-shadow(0 0 8px rgba(57, 255, 20, 0.4)); }
 }
 
 /* ===== Q Indicator ===== */
@@ -230,10 +230,10 @@ body {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .q-indicator.high {
-  background: rgba(52, 211, 153, 0.12);
+  background: rgba(57, 255, 20, 0.12);
   border: 2px solid var(--accent-emerald);
   color: var(--accent-emerald);
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.25);
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.25);
 }
 .q-indicator.low {
   background: rgba(255, 255, 255, 0.05);
@@ -271,7 +271,7 @@ body {
   transition: all 0.2s ease;
 }
 .truth-table tr.active {
-  background: rgba(232, 168, 73, 0.06);
+  background: rgba(245, 158, 11, 0.06);
 }
 .truth-table tr.active td {
   color: var(--accent-amber);
@@ -280,23 +280,23 @@ body {
 /* ===== Chip / Circuit Builder components ===== */
 .chip-component {
   background: rgba(22, 29, 38, 0.95);
-  border: 1px solid rgba(232, 168, 73, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 8px;
   user-select: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .chip-component:hover {
   border-color: var(--accent-amber);
-  box-shadow: 0 0 16px rgba(232, 168, 73, 0.15);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
 }
 .chip-component.selected {
   border-color: var(--accent-amber);
-  box-shadow: 0 0 20px rgba(232, 168, 73, 0.25);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
 }
 .chip-component.dragging {
   opacity: 0.9;
   border-color: var(--accent-emerald);
-  box-shadow: 0 0 24px rgba(52, 211, 153, 0.25);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.25);
 }
 
 /* Port dots */
@@ -312,13 +312,13 @@ body {
 .port:hover {
   background: var(--accent-amber);
   border-color: var(--accent-amber);
-  box-shadow: 0 0 10px rgba(232, 168, 73, 0.6);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
   transform: scale(1.4);
 }
 .port.active {
   background: var(--accent-emerald);
   border-color: var(--accent-emerald);
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
 }
 
 /* Delete overlay */
@@ -346,8 +346,8 @@ body {
 
 /* Drop zone */
 .canvas-drop-active {
-  border-color: rgba(52, 211, 153, 0.5) !important;
-  box-shadow: inset 0 0 40px rgba(52, 211, 153, 0.05);
+  border-color: rgba(57, 255, 20, 0.5) !important;
+  box-shadow: inset 0 0 40px rgba(57, 255, 20, 0.05);
 }
 
 /* ===== Invalid state ===== */
@@ -361,12 +361,24 @@ body {
 
 /* ===== Smart Panel ===== */
 .smart-panel {
-  background: rgba(232, 168, 73, 0.06);
-  border: 1px solid rgba(232, 168, 73, 0.18);
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.18);
   border-radius: 12px;
   padding: 16px;
 }
 
+/* ===== Section Divider ===== */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.25) 30%,
+    rgba(245, 158, 11, 0.4) 50%,
+    rgba(245, 158, 11, 0.25) 70%,
+    transparent 100%
+  );
+}
 
 /* ===== State Box ===== */
 .state-box {
@@ -379,10 +391,10 @@ body {
   transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .state-box.high {
-  background: rgba(52, 211, 153, 0.1);
+  background: rgba(57, 255, 20, 0.1);
   border: 2px solid var(--accent-emerald);
   color: var(--accent-emerald);
-  box-shadow: 0 0 24px rgba(52, 211, 153, 0.2);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.2);
 }
 .state-box.low {
   background: rgba(255, 255, 255, 0.04);
@@ -399,8 +411,8 @@ body {
 
 /* ===== Simulation Running ===== */
 @keyframes simPulse {
-  0%, 100% { box-shadow: 0 0 4px rgba(52, 211, 153, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(52, 211, 153, 0.7); }
+  0%, 100% { box-shadow: 0 0 4px rgba(57, 255, 20, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(57, 255, 20, 0.7); }
 }
 .sim-running {
   animation: simPulse 1s ease-in-out infinite;
@@ -444,7 +456,7 @@ body {
   white-space: nowrap;
 }
 .context-menu-item:hover {
-  background: rgba(232, 168, 73, 0.12);
+  background: rgba(245, 158, 11, 0.12);
   color: var(--accent-amber);
 }
 .context-menu-item.danger:hover {
@@ -465,7 +477,7 @@ body {
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(232, 168, 73, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
   transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
   mix-blend-mode: screen;
@@ -477,9 +489,9 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(232, 168, 73, 0.7);
+  background: rgba(245, 158, 11, 0.7);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 12px rgba(232, 168, 73, 0.4);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
   transition: transform 0.1s ease, background 0.2s ease;
 }
 
