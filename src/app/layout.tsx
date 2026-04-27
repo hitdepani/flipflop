@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
+import CursorEffect from "@/components/CursorEffect";
 
 export const metadata: Metadata = {
   title: "FlipLogic — Digital Electronics Lab",
@@ -19,7 +22,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased bg-[#0f1419] overflow-x-hidden min-h-screen relative">
+        <CursorEffect />
+        <Nav />
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }

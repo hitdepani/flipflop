@@ -2,44 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const navItems = [
-  { id: "gate-lab", label: "Gate Lab", color: "#e8a849" },
-  { id: "flipflop", label: "Flip-Flop", color: "#34d399" },
-  { id: "circuit-builder", label: "Circuit Builder", color: "#60a5fa" },
-  { id: "timing", label: "Timing Diagrams", color: "#f472b6" },
+  { href: "/", label: "Home", color: "#e8a849" },
+  { href: "/logic-gates", label: "Logic Gates", color: "#e8a849" },
+  { href: "/flip-flops", label: "Flip-Flops", color: "#34d399" },
+  { href: "/circuit-builder", label: "Circuit Builder", color: "#60a5fa" },
+  { href: "/timing-diagrams", label: "Timing Diagrams", color: "#f472b6" },
 ];
 
 export default function Nav() {
-  const [active, setActive] = useState("");
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-
-      const sections = navItems.map((item) => document.getElementById(item.id));
-      let current = "";
-      sections.forEach((section) => {
-        if (section) {
-          const rect = section.getBoundingClientRect();
-          if (rect.top <= 120 && rect.bottom > 120) {
-            current = section.id;
-          }
-        }
-      });
-      setActive(current);
+      setScrolled(window.scrollY > 20);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    setMenuOpen(false);
-  };
 
   return (
     <motion.header
@@ -49,49 +35,52 @@ export default function Nav() {
       className="fixed top-0 left-0 right-0 z-[100] flex justify-center px-6 pt-4"
     >
       <div
-        className="flex items-center gap-8 px-6 py-3 rounded-2xl transition-all duration-300"
+        className="flex items-center gap-6 px-6 py-3 rounded-2xl transition-all duration-300"
         style={{
           background: scrolled ? "rgba(15,20,25,0.9)" : "rgba(15,20,25,0.4)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255,255,255,0.06)",
           boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.4)" : "none",
-          maxWidth: 700,
+          maxWidth: 900,
           width: "100%",
         }}
       >
         {/* Logo */}
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        <Link
+          href="/"
           className="font-black text-lg tracking-tight cursor-pointer"
           style={{ background: "linear-gradient(135deg,#e8a849,#fb923c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
         >
           FLIP<span className="text-white" style={{ WebkitTextFillColor: "white" }}>LOGIC</span>
-        </button>
+        </Link>
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => scrollTo(item.id)}
-              className="relative px-4 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
-              style={{
-                color: active === item.id ? item.color : "rgba(255,255,255,0.5)",
-              }}
-            >
-              {active === item.id && (
-                <motion.div
-                  layoutId="nav-active"
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: `${item.color}15`,
-                    border: `1px solid ${item.color}30`,
-                  }}
-                />
-              )}
-              <span className="relative z-10">{item.label}</span>
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="relative px-4 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                style={{
+                  color: isActive ? item.color : "rgba(255,255,255,0.5)",
+                }}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="nav-active"
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      background: `${item.color}15`,
+                      border: `1px solid ${item.color}30`,
+                    }}
+                  />
+                )}
+                <span className="relative z-10">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* "Live Lab" badge */}
@@ -122,16 +111,20 @@ export default function Nav() {
             exit={{ opacity: 0, y: -10 }}
             className="absolute top-20 left-6 right-6 rounded-2xl p-4 glass-card"
           >
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => scrollTo(item.id)}
-                className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-                style={{ color: item.color }}
-              >
-                {item.label}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="block w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                  style={{ color: isActive ? item.color : "rgba(255,255,255,0.5)" }}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
