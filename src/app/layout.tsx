@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+import Nav from "@/components/Nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FlipLogic — Digital Electronics Lab",
+  title: "FlipLogic - Digital Electronics Lab",
   description:
-    "An immersive, interactive learning platform for Digital Electronics — Logic Gates, Flip-Flops, and Sequential Circuits. Build, simulate, and visualize circuits in real-time.",
+    "An immersive, interactive learning platform for digital electronics. Build, simulate, and visualize logic gates, flip-flops, circuits, and timing diagrams in real time.",
 };
-
-import Nav from "@/components/Nav";
 
 export default function RootLayout({
   children,
@@ -20,11 +19,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="antialiased bg-[#0b0f14] min-h-screen text-[#cbd5e1]">
+      <body className="antialiased min-h-screen overflow-x-hidden">
         <Nav />
-        <div className="pt-24 min-h-screen">
-          {children}
-        </div>
+        <main className="min-h-screen">{children}</main>
       </body>
     </html>
   );

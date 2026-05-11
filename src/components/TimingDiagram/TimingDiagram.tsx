@@ -1,412 +1,244 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, Download, Pause, Play, RotateCcw, SlidersHorizontal, Sparkles, Waves, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Bit = 0 | 1;
-type FFType = "D" | "SR" | "JK" | "T";
+type FFType = "D" | "T" | "SR" | "JK";
 
-interface Signal {
+type Signal = {
   name: string;
   bits: Bit[];
   color: string;
+};
+
+const COLORS = ["#f6b84b", "#22d3ee", "#41f29a", "#a78bfa", "#fb7185"];
+const PRESETS = [
+  { name: "D Register", type: "D" as FFType, a: "01101001", b: "" },
+  { name: "T Counter", type: "T" as FFType, a: "11111111", b: "" },
+  { name: "SR Latch Edge", type: "SR" as FFType, a: "01000100", b: "00010001" },
+  { name: "JK Universal", type: "JK" as FFType, a: "01101011", b: "10010110" },
+];
+
+function parseBits(input: string, length: number): Bit[] {
+  const clean = input.replace(/[^01]/g, "") || "0";
+  return Array.from({ length }, (_, index) => (clean[index % clean.length] === "1" ? 1 : 0));
 }
 
-function parseSequence(seq: string, len: number): Bit[] {
-  return Array.from({ length: len }, (_, i) => {
-    const c = seq[i % seq.length];
-    return c === "1" ? 1 : 0;
-  });
+function clock(length: number): Bit[] {
+  return Array.from({ length }, (_, index) => (index % 2 === 0 ? 0 : 1));
 }
 
-function generateClock(len: number): Bit[] {
-  return Array.from({ length: len }, (_, i) => (i % 2 === 0 ? 0 : 1));
-}
-
-function computeFFOutput(type: FFType, inputs: Record<string, Bit[]>, clk: Bit[], len: number): Bit[] {
-  const result: Bit[] = [0];
-  let Q: Bit = 0;
-  for (let i = 1; i < len; i++) {
+function outputFor(type: FFType, a: Bit[], b: Bit[], clk: Bit[], length: number): Bit[] {
+  let q: Bit = 0;
+  const out: Bit[] = [q];
+  for (let i = 1; i < length; i += 1) {
     const rising = clk[i] === 1 && clk[i - 1] === 0;
     if (rising) {
-      switch (type) {
-        case "D": Q = inputs.A[i]; break;
-        case "T": if (inputs.A[i] === 1) Q = (1 - Q) as Bit; break;
-        case "SR": {
-          const S = inputs.A[i], R = inputs.B?.[i] ?? 0;
-          if (S === 1 && R === 0) Q = 1;
-          else if (S === 0 && R === 1) Q = 0;
-          break;
-        }
-        case "JK": {
-          const J = inputs.A[i], K = inputs.B?.[i] ?? 0;
-          if (J === 1 && K === 1) Q = (1 - Q) as Bit;
-          else if (J === 1) Q = 1;
-          else if (K === 1) Q = 0;
-          break;
-        }
+      if (type === "D") q = a[i];
+      if (type === "T" && a[i]) q = (1 - q) as Bit;
+      if (type === "SR") {
+        if (a[i] && !b[i]) q = 1;
+        if (!a[i] && b[i]) q = 0;
+      }
+      if (type === "JK") {
+        if (a[i] && b[i]) q = (1 - q) as Bit;
+        else if (a[i]) q = 1;
+        else if (b[i]) q = 0;
       }
     }
-    result.push(Q);
+    out.push(q);
   }
-  return result;
+  return out;
 }
 
-const TRACK_H = 52;
-const WAVEFORM_COLORS = ["#e8a849", "#60a5fa", "#34d399", "#f472b6", "#fb923c"];
-
-function WaveformTrack({ signal, width, animProgress }: { signal: Signal; width: number; animProgress: number }) {
-  const n = Math.floor(signal.bits.length * animProgress);
-  const bitW = Math.max(width / signal.bits.length, 20);
-
+function WaveTrack({ signal, zoom, cursor }: { signal: Signal; zoom: number; cursor: number }) {
+  const step = 48 * zoom;
+  const width = signal.bits.length * step + 40;
   return (
-    <div className="relative" style={{ height: TRACK_H }}>
-      <div className="absolute left-0 top-0 bottom-0 w-20 flex items-center px-3">
-        <span className="font-mono text-xs font-bold truncate" style={{ color: signal.color }}>
-          {signal.name}
-        </span>
+    <div className="relative border-b border-white/8">
+      <div className="absolute bottom-0 left-0 top-0 z-10 flex w-24 items-center border-r border-white/8 bg-[#070b13]/90 px-4">
+        <span className="font-mono text-xs font-black" style={{ color: signal.color }}>{signal.name}</span>
       </div>
-      <div className="absolute left-20 right-0 top-0 bottom-0 overflow-hidden">
-        <svg width="100%" height={TRACK_H} viewBox={`0 0 ${Math.max(width - 80, 200)} ${TRACK_H}`} preserveAspectRatio="none">
-          {signal.bits.slice(0, n).map((bit, i) => {
-            const x = i * bitW;
-            const y = bit === 1 ? 8 : 36;
-            const nextBit = signal.bits[i + 1];
-            const nextY = nextBit === 1 ? 8 : 36;
+      <div className="overflow-x-auto pl-24">
+        <svg viewBox={`0 0 ${width} 70`} width={width} height="70" className="block">
+          {signal.bits.map((bit, index) => {
+            const x = index * step + 16;
+            const y = bit ? 16 : 52;
+            const next = signal.bits[index + 1] ?? bit;
+            const ny = next ? 16 : 52;
             return (
-              <g key={i}>
-                <line
-                  x1={x} y1={y}
-                  x2={x + bitW} y2={y}
-                  stroke={signal.color}
-                  strokeWidth="2"
-                  style={{ filter: `drop-shadow(0 0 3px ${signal.color})` }}
-                />
-                {i < n - 1 && y !== nextY && (
-                  <line
-                    x1={x + bitW} y1={y}
-                    x2={x + bitW} y2={nextY}
-                    stroke={signal.color}
-                    strokeWidth="2"
-                    style={{ filter: `drop-shadow(0 0 3px ${signal.color})` }}
-                  />
-                )}
-                <text
-                  x={x + bitW / 2} y={y === 8 ? 22 : 30}
-                  textAnchor="middle"
-                  fill={`${signal.color}80`}
-                  fontSize="8"
-                  fontFamily="JetBrains Mono,monospace"
-                >
-                  {bit}
-                </text>
+              <g key={index}>
+                <line x1={x} x2={x + step} y1={y} y2={y} stroke={signal.color} strokeWidth="3" strokeLinecap="round" filter={`drop-shadow(0 0 5px ${signal.color})`} />
+                {ny !== y && <line x1={x + step} x2={x + step} y1={y} y2={ny} stroke={signal.color} strokeWidth="3" strokeLinecap="round" />}
+                <text x={x + step / 2} y={bit ? 37 : 42} textAnchor="middle" fill={`${signal.color}88`} fontFamily="JetBrains Mono" fontSize="10" fontWeight="700">{bit}</text>
               </g>
             );
           })}
-          {animProgress < 1 && (
-            <line
-              x1={n * bitW} y1="0"
-              x2={n * bitW} y2={TRACK_H}
-              stroke="rgba(255,255,255,0.3)"
-              strokeWidth="1"
-              strokeDasharray="4,3"
-            />
-          )}
+          <motion.rect x={cursor * step + 16} y="0" width="3" height="70" fill="#ffffff" opacity="0.42" />
         </svg>
       </div>
-      <div className="absolute right-0 top-0 bottom-0 border-l border-white/[0.05]" />
     </div>
   );
 }
 
-const PRESETS = [
-  { name: "D Flip-Flop", type: "D" as FFType, seqA: "01101001", seqB: "" },
-  { name: "T Toggle Counter", type: "T" as FFType, seqA: "11111111", seqB: "" },
-  { name: "JK Universal", type: "JK" as FFType, seqA: "01101011", seqB: "10010110" },
-  { name: "SR Set-Reset", type: "SR" as FFType, seqA: "01000100", seqB: "00010001" },
-];
-
 export default function TimingDiagram() {
-  const [ffType, setFFType] = useState<FFType>("D");
-  const [seqA, setSeqA] = useState("01101001");
-  const [seqB, setSeqB] = useState("");
-  const [length, setLength] = useState(16);
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [animProgress, setAnimProgress] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [generated, setGenerated] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerW, setContainerW] = useState(600);
+  const [type, setType] = useState<FFType>("JK");
+  const [seqA, setSeqA] = useState("01101011");
+  const [seqB, setSeqB] = useState("10010110");
+  const [length, setLength] = useState(18);
+  const [zoom, setZoom] = useState(1);
+  const [playing, setPlaying] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const svgRef = useRef<HTMLDivElement>(null);
+
+  const signals = useMemo<Signal[]>(() => {
+    const clk = clock(length);
+    const a = parseBits(seqA, length);
+    const b = parseBits(seqB, length);
+    const out = outputFor(type, a, b, clk, length);
+    const needsB = type === "SR" || type === "JK";
+    return [
+      { name: "CLK", bits: clk, color: COLORS[0] },
+      { name: type === "D" ? "D" : type === "T" ? "T" : type === "SR" ? "S" : "J", bits: a, color: COLORS[1] },
+      ...(needsB ? [{ name: type === "SR" ? "R" : "K", bits: b, color: COLORS[2] }] : []),
+      { name: "Q", bits: out, color: COLORS[3] },
+    ];
+  }, [length, seqA, seqB, type]);
+
+  const exportSvg = useCallback(() => {
+    const container = svgRef.current;
+    if (!container) return;
+    const text = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${signals.length * 76 + 40}"><rect width="100%" height="100%" fill="#050812"/><text x="24" y="28" fill="#fff" font-family="JetBrains Mono" font-size="16">FlipLogic Timing Diagram</text></svg>`;
+    const blob = new Blob([text], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "fliplogic-timing.svg";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [signals.length]);
+
+  const tick = () => setCursor((value) => (value + 1) % length);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      setContainerW(entries[0].contentRect.width);
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const generate = useCallback(() => {
-    const clk = generateClock(length);
-    const A = parseSequence(seqA || "01010101", length);
-    const B = parseSequence(seqB || "00110011", length);
-
-    const needsB = ["SR", "JK"].includes(ffType);
-    const output = computeFFOutput(ffType, { A, B }, clk, length);
-
-    const newSignals: Signal[] = [
-      { name: "CLK", bits: clk, color: WAVEFORM_COLORS[0] },
-      { name: ffType === "D" ? "D" : ffType === "T" ? "T" : ffType === "SR" ? "S" : "J", bits: A, color: WAVEFORM_COLORS[1] },
-      ...(needsB ? [{ name: ffType === "SR" ? "R" : "K", bits: B, color: WAVEFORM_COLORS[2] }] : []),
-      { name: "Q", bits: output, color: WAVEFORM_COLORS[3] },
-    ];
-
-    setSignals(newSignals);
-    setAnimProgress(0);
-    setIsAnimating(true);
-    setGenerated(true);
-
-    let start: number | null = null;
-    const duration = 2000;
-    const step = (ts: number) => {
-      if (!start) start = ts;
-      const prog = Math.min((ts - start) / duration, 1);
-      setAnimProgress(prog);
-      if (prog < 1) requestAnimationFrame(step);
-      else setIsAnimating(false);
-    };
-    requestAnimationFrame(step);
-  }, [ffType, seqA, seqB, length]);
-
-  const applyPreset = (preset: typeof PRESETS[0]) => {
-    setFFType(preset.type);
-    setSeqA(preset.seqA);
-    setSeqB(preset.seqB);
-    setTimeout(() => generate(), 50);
-  };
+    if (!playing) return;
+    const timer = window.setInterval(tick, 520);
+    return () => window.clearInterval(timer);
+  }, [length, playing]);
 
   return (
-    <section id="timing" className="relative py-12 md:py-16 px-3 md:px-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-10"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            <span className="text-white">Timing Diagrams</span>
-          </h2>
-          <p className="text-white/40 text-lg max-w-2xl">
-            Define input sequences and watch waveforms animate across the timeline.
+    <section className="page-shell page-transition">
+      <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <div className="eyebrow mb-4">
+            <Waves className="h-3.5 w-3.5 text-amber-200" />
+            Timing Diagram Visualizer
+          </div>
+          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">Oscilloscope-grade waveforms for sequential logic.</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+            Define input streams, zoom the timeline, scrub the cursor, and export clean waveforms for notes or review.
           </p>
-        </motion.div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="premium-button primary" onClick={() => { setPlaying((value) => !value); tick(); }}>
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {playing ? "Pause" : "Play"}
+          </button>
+          <button className="premium-button" onClick={tick}><Activity className="h-4 w-4" />Step</button>
+          <button className="premium-button" onClick={exportSvg}><Download className="h-4 w-4" />SVG</button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Controls */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="lg:col-span-4 space-y-4"
-          >
-            {/* FF Type */}
-            <div className="glass-card p-4">
-              <div className="text-xs font-mono text-white/40 uppercase tracking-widest mb-3">Flip-Flop Type</div>
-              <div className="grid grid-cols-2 gap-2">
-                {(["D", "T", "SR", "JK"] as FFType[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setFFType(t)}
-                    className="py-2 rounded-lg font-mono text-sm cursor-pointer"
-                    style={{
-                      background: ffType === t ? "rgba(244,114,182,0.12)" : "rgba(255,255,255,0.04)",
-                      border: ffType === t ? "1px solid rgba(244,114,182,0.4)" : "1px solid rgba(255,255,255,0.08)",
-                      color: ffType === t ? "#f472b6" : "rgba(255,255,255,0.4)",
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+      <div className="grid gap-4 lg:grid-cols-[330px_1fr]">
+        <aside className="grid gap-4">
+          <div className="premium-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-cyan-200" />
+              <h3 className="font-black text-white">Controls</h3>
             </div>
-
-            {/* Presets */}
-            <div className="glass-card p-4">
-              <div className="text-xs font-mono text-white/40 uppercase tracking-widest mb-3">Quick Presets</div>
-              <div className="space-y-2">
-                {PRESETS.map((p) => (
-                  <motion.button
-                    key={p.name}
-                    onClick={() => applyPreset(p)}
-                    whileHover={{ x: 4 }}
-                    className="w-full text-left px-3 py-2 rounded-lg text-sm cursor-pointer"
-                    style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      color: "rgba(255,255,255,0.6)",
-                    }}
-                  >
-                    <span className="text-[#f472b6] font-mono mr-2">{p.type}</span>
-                    {p.name}
-                  </motion.button>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["D", "T", "SR", "JK"] as FFType[]).map((item) => (
+                <button key={item} onClick={() => setType(item)} className={`rounded-xl border px-3 py-2 font-mono text-sm font-black ${type === item ? "border-cyan-300/34 bg-cyan-300/12 text-white" : "border-white/10 bg-white/[0.035] text-white/48"}`}>{item}</button>
+              ))}
             </div>
-
-            {/* Input sequences */}
-            <div className="glass-card p-4 space-y-3">
-              <div className="text-xs font-mono text-white/40 uppercase tracking-widest">Input Sequences</div>
-
-              <div>
-                <label className="text-xs text-white/50 mb-1 block font-mono">
-                  {ffType === "D" ? "D" : ffType === "T" ? "T" : ffType === "SR" ? "S" : "J"} input
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block font-mono text-xs font-black uppercase tracking-widest text-white/34">{type === "D" ? "D" : type === "T" ? "T" : type === "SR" ? "S" : "J"} sequence</span>
+                <input value={seqA} onChange={(event) => setSeqA(event.target.value.replace(/[^01]/g, ""))} className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-cyan-100 outline-none" />
+              </label>
+              {(type === "SR" || type === "JK") && (
+                <label className="block">
+                  <span className="mb-1 block font-mono text-xs font-black uppercase tracking-widest text-white/34">{type === "SR" ? "R" : "K"} sequence</span>
+                  <input value={seqB} onChange={(event) => setSeqB(event.target.value.replace(/[^01]/g, ""))} className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-[#41f29a] outline-none" />
                 </label>
-                <input
-                  value={seqA}
-                  onChange={(e) => setSeqA(e.target.value.replace(/[^01]/g, ""))}
-                  maxLength={20}
-                  className="w-full px-3 py-2 rounded-lg font-mono text-sm"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#e8a849",
-                    outline: "none",
-                  }}
-                  placeholder="01010101"
-                />
-              </div>
-
-              {["SR", "JK"].includes(ffType) && (
-                <div>
-                  <label className="text-xs text-white/50 mb-1 block font-mono">
-                    {ffType === "SR" ? "R" : "K"} input
-                  </label>
-                  <input
-                    value={seqB}
-                    onChange={(e) => setSeqB(e.target.value.replace(/[^01]/g, ""))}
-                    maxLength={20}
-                    className="w-full px-3 py-2 rounded-lg font-mono text-sm"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      color: "#60a5fa",
-                      outline: "none",
-                    }}
-                    placeholder="10101010"
-                  />
-                </div>
               )}
-
-              <div>
-                <label className="text-xs text-white/50 mb-1 block font-mono">Timeline length: {length}</label>
-                <input
-                  type="range"
-                  min={8} max={32} step={2}
-                  value={length}
-                  onChange={(e) => setLength(Number(e.target.value))}
-                  className="w-full"
-                  style={{ accentColor: "#f472b6" }}
-                />
-              </div>
-
-              <motion.button
-                onClick={generate}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-2.5 rounded-xl font-bold text-sm cursor-pointer"
-                style={{
-                  background: "linear-gradient(135deg, rgba(244,114,182,0.15), rgba(232,168,73,0.15))",
-                  border: "1px solid rgba(244,114,182,0.4)",
-                  color: "#f472b6",
-                }}
-              >
-                {isAnimating ? "Generating..." : "▶ Generate Waveform"}
-              </motion.button>
+              <label className="block">
+                <span className="mb-1 block font-mono text-xs font-black uppercase tracking-widest text-white/34">timeline {length}</span>
+                <input type="range" min="8" max="32" step="2" value={length} onChange={(event) => setLength(Number(event.target.value))} className="w-full accent-cyan-300" />
+              </label>
             </div>
-          </motion.div>
+          </div>
 
-          {/* Waveform display */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="lg:col-span-8"
-          >
-            <div
-              ref={containerRef}
-              className="glass-card overflow-hidden"
-              style={{ minHeight: 320 }}
-            >
-              {!generated ? (
-                <div className="flex items-center justify-center h-80 text-white/20 text-center">
-                  <div>
-                    <div className="text-5xl mb-4">≋</div>
-                    <div className="font-mono text-sm">Configure inputs and click Generate</div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Time ruler */}
-                  <div className="flex border-b border-white/[0.06] h-8 pl-20">
-                    {Array.from({ length: length }, (_, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 flex items-center justify-center text-xs font-mono text-white/20"
-                        style={{ borderRight: "1px solid rgba(255,255,255,0.04)" }}
-                      >
-                        {i % 4 === 0 ? i : ""}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Tracks */}
-                  {signals.map((sig, i) => (
-                    <motion.div
-                      key={sig.name}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className="border-b border-white/[0.04]"
-                    >
-                      <WaveformTrack signal={sig} width={containerW} animProgress={animProgress} />
-                    </motion.div>
-                  ))}
-
-                  {/* Legend */}
-                  <div className="p-4 flex flex-wrap gap-4">
-                    {signals.map((sig) => (
-                      <div key={sig.name} className="flex items-center gap-2 text-xs font-mono">
-                        <div
-                          className="w-6 h-0.5 rounded"
-                          style={{
-                            background: sig.color,
-                            boxShadow: `0 0 6px ${sig.color}`,
-                          }}
-                        />
-                        <span style={{ color: sig.color }}>{sig.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+          <div className="premium-card p-4">
+            <h3 className="mb-3 font-black text-white">Presets</h3>
+            <div className="space-y-2">
+              {PRESETS.map((preset) => (
+                <button key={preset.name} onClick={() => { setType(preset.type); setSeqA(preset.a); setSeqB(preset.b); setCursor(0); }} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-left text-sm text-white/62 hover:border-cyan-300/28 hover:text-white">
+                  <span>{preset.name}</span>
+                  <span className="font-mono text-xs text-cyan-200">{preset.type}</span>
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Tips */}
-            {generated && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-3 p-3 rounded-xl text-xs text-white/30 leading-relaxed"
-                style={{ background: "rgba(244,114,182,0.04)", border: "1px solid rgba(244,114,182,0.1)" }}
-              >
-                💡 Waveform reads left to right over time. Clock rising edges (↑) trigger state changes in Q. 
-                Vertical transitions show state changes. Try different presets to see how each flip-flop behaves!
-              </motion.div>
-            )}
-          </motion.div>
+          <div className="glass-panel p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
+              <Sparkles className="h-4 w-4 text-amber-200" />
+              Edge insight
+            </div>
+            <p className="text-sm leading-6 text-white/52">Q updates only on rising CLK edges. Scrub or step the cursor to line up input state with output transitions.</p>
+          </div>
+        </aside>
+
+        <div className="premium-card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 p-4">
+            <div>
+              <h3 className="font-black text-white">Waveform Renderer</h3>
+              <p className="text-sm text-white/38">Cursor at sample {cursor}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="icon-button" onClick={() => setZoom((value) => Math.max(0.7, value - 0.1))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></button>
+              <span className="mono-chip">{Math.round(zoom * 100)}%</span>
+              <button className="icon-button" onClick={() => setZoom((value) => Math.min(1.8, value + 0.1))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></button>
+              <button className="icon-button" onClick={() => setCursor(0)} aria-label="Reset cursor"><RotateCcw className="h-4 w-4" /></button>
+            </div>
+          </div>
+          <div ref={svgRef} className="bg-[#050812]">
+            <div className="flex h-9 items-center border-b border-white/8 pl-24">
+              {Array.from({ length }).map((_, index) => (
+                <button key={index} onClick={() => setCursor(index)} className={`h-full border-r border-white/8 px-3 font-mono text-xs ${cursor === index ? "bg-cyan-300/10 text-white" : "text-white/28"}`}>
+                  {index}
+                </button>
+              ))}
+            </div>
+            <AnimatePresence mode="popLayout">
+              {signals.map((signal) => (
+                <motion.div key={signal.name} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}>
+                  <WaveTrack signal={signal} zoom={zoom} cursor={cursor} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div className="flex flex-wrap gap-3 p-4">
+              {signals.map((signal) => (
+                <span key={signal.name} className="mono-chip" style={{ color: signal.color }}>
+                  <span className="h-1.5 w-5 rounded-full" style={{ background: signal.color, boxShadow: `0 0 8px ${signal.color}` }} />
+                  {signal.name}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

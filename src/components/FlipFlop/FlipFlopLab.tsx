@@ -1,521 +1,282 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, Gauge, GitBranch, History, Pause, Play, RotateCcw, Sparkles, TimerReset } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FFType = "SR" | "JK" | "D" | "T";
 type Bit = 0 | 1;
-type State = 0 | 1 | "X";
+type State = Bit | "X";
 
-interface FFState {
-  Q: State;
-  Qbar: State;
-}
+const FF_META: Record<FFType, { color: string; inputs: string[]; description: string }> = {
+  SR: { color: "#f6b84b", inputs: ["S", "R"], description: "Set-reset storage with a forbidden S=1, R=1 condition." },
+  JK: { color: "#75a7ff", inputs: ["J", "K"], description: "Universal flip-flop. J=K=1 toggles the stored state." },
+  D: { color: "#41f29a", inputs: ["D"], description: "Data flip-flop. Q samples D on each rising clock edge." },
+  T: { color: "#fb7185", inputs: ["T"], description: "Toggle flip-flop. T=1 flips Q on every clock pulse." },
+};
 
-function computeFF(type: FFType, inputs: Record<string, Bit>, prevQ: Bit): FFState {
-  switch (type) {
-    case "SR": {
-      const { S, R } = inputs;
-      if (S === 1 && R === 1) return { Q: "X", Qbar: "X" };
-      if (S === 1 && R === 0) return { Q: 1, Qbar: 0 };
-      if (S === 0 && R === 1) return { Q: 0, Qbar: 1 };
-      return { Q: prevQ, Qbar: (1 - prevQ) as Bit };
-    }
-    case "JK": {
-      const { J, K } = inputs;
-      if (J === 0 && K === 0) return { Q: prevQ, Qbar: (1 - prevQ) as Bit };
-      if (J === 0 && K === 1) return { Q: 0, Qbar: 1 };
-      if (J === 1 && K === 0) return { Q: 1, Qbar: 0 };
-      // J=1, K=1: Toggle
-      return { Q: (1 - prevQ) as Bit, Qbar: prevQ };
-    }
-    case "D": {
-      const { D } = inputs;
-      return { Q: D, Qbar: (1 - D) as Bit };
-    }
-    case "T": {
-      const { T } = inputs;
-      if (T === 0) return { Q: prevQ, Qbar: (1 - prevQ) as Bit };
-      return { Q: (1 - prevQ) as Bit, Qbar: prevQ };
-    }
+function nextState(type: FFType, inputs: Record<string, Bit>, prevQ: Bit): { q: State; qbar: State } {
+  if (type === "SR") {
+    if (inputs.S === 1 && inputs.R === 1) return { q: "X", qbar: "X" };
+    if (inputs.S === 1) return { q: 1, qbar: 0 };
+    if (inputs.R === 1) return { q: 0, qbar: 1 };
+    return { q: prevQ, qbar: (1 - prevQ) as Bit };
   }
-}
-
-function getFFExplanation(type: FFType, inputs: Record<string, Bit>, Q: State, prevQ: Bit, clockTick: number): string {
-  if (clockTick === 0) return `Set your inputs and press ▶ Clock Pulse to see the flip-flop respond on the rising edge.`;
-  switch (type) {
-    case "SR": {
-      const { S, R } = inputs;
-      if (S === 1 && R === 1) return "⚠️ INVALID STATE! When S=1 and R=1, the output is indeterminate. This is a forbidden state in SR flip-flops and should be avoided in real circuits!";
-      if (S === 1 && R === 0) return `SET condition: S=1, R=0 on the rising clock edge → Q was ${prevQ}, now Q=1. The flip-flop has been SET HIGH.`;
-      if (S === 0 && R === 1) return `RESET condition: S=0, R=1 on the rising clock edge → Q was ${prevQ}, now Q=0. The flip-flop has been RESET LOW.`;
-      return `HOLD condition: S=0, R=0 → No change on clock edge. Q remains ${prevQ}. The flip-flop retains its memory.`;
-    }
-    case "JK": {
-      const { J, K } = inputs;
-      if (J === 0 && K === 0) return `HOLD: J=0, K=0 → Q retains its value of ${Q}. No change on rising edge.`;
-      if (J === 0 && K === 1) return `RESET: J=0, K=1 → Q was ${prevQ}, now Q=0. JK flip-flop cleared.`;
-      if (J === 1 && K === 0) return `SET: J=1, K=0 → Q was ${prevQ}, now Q=1. JK flip-flop set HIGH.`;
-      return `TOGGLE: J=1, K=1 → Q was ${prevQ}, now Q=${Q}. The JK flip-flop toggles — this is the key advantage over SR!`;
-    }
-    case "D": {
-      return `DATA latch: D=${inputs.D} → On rising clock edge, Q follows D exactly. Q was ${prevQ}, now Q=${Q}. D flip-flop samples and holds the data input.`;
-    }
-    case "T": {
-      const { T } = inputs;
-      if (T === 0) return `HOLD: T=0 → No toggle on clock edge. Q remains ${prevQ}.`;
-      return `TOGGLE: T=1 → Q was ${prevQ}, now Q=${Q}. The T flip-flop flips its state on every enabled clock edge.`;
-    }
+  if (type === "JK") {
+    if (inputs.J === 1 && inputs.K === 1) return { q: (1 - prevQ) as Bit, qbar: prevQ };
+    if (inputs.J === 1) return { q: 1, qbar: 0 };
+    if (inputs.K === 1) return { q: 0, qbar: 1 };
+    return { q: prevQ, qbar: (1 - prevQ) as Bit };
   }
+  if (type === "D") return { q: inputs.D ?? 0, qbar: (1 - (inputs.D ?? 0)) as Bit };
+  if (inputs.T === 1) return { q: (1 - prevQ) as Bit, qbar: prevQ };
+  return { q: prevQ, qbar: (1 - prevQ) as Bit };
 }
 
-const FF_COLORS: Record<FFType, string> = {
-  SR: "#e8a849",
-  JK: "#60a5fa",
-  D: "#34d399",
-  T: "#f472b6",
-};
-
-const FF_INPUTS: Record<FFType, string[]> = {
-  SR: ["S", "R"],
-  JK: ["J", "K"],
-  D: ["D"],
-  T: ["T"],
-};
-
-const FF_DESCRIPTIONS: Record<FFType, string> = {
-  SR: "Set-Reset Latch. The fundamental memory element. S=1 sets output HIGH, R=1 resets it LOW. S=R=1 is forbidden!",
-  JK: "Extended SR. J=Set, K=Reset, J=K=1 causes toggle. Resolves the SR forbidden state — the most versatile flip-flop.",
-  D: "Data/Delay flip-flop. Output Q follows input D on each clock edge. Used in registers and data pipelines.",
-  T: "Toggle flip-flop. T=1 toggles output on clock edge. T=0 holds. Used in binary counters.",
-};
-
-function ClockPulseViz({ tick, isRunning, speed }: { tick: number; isRunning: boolean; speed: number }) {
-  const cycles = Array.from({ length: 8 }, (_, i) => i);
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Clock (CLK)</span>
-        <div className="flex items-center gap-2">
-          {isRunning && (
-            <motion.div
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: speed / 1000, repeat: Infinity }}
-              className="w-2 h-2 rounded-full bg-[#e8a849]"
-              style={{ boxShadow: "0 0 8px #e8a849" }}
-            />
-          )}
-          <span className="text-xs font-mono" style={{ color: "#e8a849" }}>
-            Tick #{tick}
-          </span>
-        </div>
-      </div>
-      <div className="relative h-10 flex items-center">
-        <svg viewBox="0 0 320 40" className="w-full h-full" preserveAspectRatio="none">
-          {cycles.map((i) => {
-            const isActive = tick > i;
-            const x = i * 40;
-            return (
-              <g key={i}>
-                <line x1={x} y1="32" x2={x + 20} y2="32"
-                  stroke={isActive ? "#e8a849" : "rgba(255,255,255,0.1)"}
-                  strokeWidth="2"
-                  style={isActive ? { filter: "drop-shadow(0 0 3px #e8a849)" } : {}} />
-                <line x1={x + 20} y1="32" x2={x + 20} y2="8"
-                  stroke={isActive ? "#e8a849" : "rgba(255,255,255,0.1)"}
-                  strokeWidth="2"
-                  style={isActive ? { filter: "drop-shadow(0 0 3px #e8a849)" } : {}} />
-                <line x1={x + 20} y1="8" x2={x + 40} y2="8"
-                  stroke={isActive ? "#e8a849" : "rgba(255,255,255,0.1)"}
-                  strokeWidth="2"
-                  style={isActive ? { filter: "drop-shadow(0 0 3px #e8a849)" } : {}} />
-              </g>
-            );
-          })}
-          {isRunning && (
-            <motion.line
-              x1={(tick % 8) * 40 + 20} y1="0"
-              x2={(tick % 8) * 40 + 20} y2="40"
-              stroke="rgba(232,168,73,0.4)"
-              strokeWidth="1"
-              strokeDasharray="3,3"
-            />
-          )}
-        </svg>
-      </div>
-    </div>
-  );
+function defaultInputs(type: FFType): Record<string, Bit> {
+  return type === "SR" ? { S: 0, R: 0 } : type === "JK" ? { J: 0, K: 0 } : type === "D" ? { D: 1 } : { T: 1 };
 }
 
-function StateHistory({ history, color }: { history: State[]; color: string }) {
-  const visible = history.slice(-12);
+function explain(type: FFType, inputs: Record<string, Bit>, prevQ: Bit, q: State, ticks: number) {
+  if (ticks === 0) return "Set inputs, then send a clock pulse. State changes are sampled on the rising edge.";
+  if (type === "SR" && inputs.S === 1 && inputs.R === 1) return "Invalid SR condition. Both set and reset are asserted, so Q becomes indeterminate.";
+  if (type === "JK" && inputs.J === 1 && inputs.K === 1) return `JK toggle mode. Q moved from ${prevQ} to ${q}.`;
+  if (type === "D") return `D was ${inputs.D} on the rising edge, so Q sampled and held ${q}.`;
+  if (type === "T") return inputs.T ? `T is enabled, so Q toggled from ${prevQ} to ${q}.` : `T is low, so Q held its previous value of ${q}.`;
+  return `Clock edge captured inputs and moved Q from ${prevQ} to ${q}.`;
+}
+
+function Waveform({ history, color }: { history: State[]; color: string }) {
+  const width = Math.max(360, history.length * 34);
   return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {visible.map((s, i) => (
-        <motion.div
-          key={i}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="w-7 h-7 rounded flex items-center justify-center font-mono text-xs font-bold"
-          style={{
-            background: s === "X" ? "rgba(244,114,182,0.12)" : s === 1 ? `${color}18` : "rgba(255,255,255,0.05)",
-            border: `1px solid ${s === "X" ? "rgba(244,114,182,0.4)" : s === 1 ? `${color}40` : "rgba(255,255,255,0.1)"}`,
-            color: s === "X" ? "#f472b6" : s === 1 ? color : "rgba(255,255,255,0.3)",
-          }}
-        >
-          {s === "X" ? "?" : String(s)}
-        </motion.div>
-      ))}
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20 p-3">
+      <svg viewBox={`0 0 ${width} 118`} className="h-32 w-full" preserveAspectRatio="none">
+        {Array.from({ length: Math.ceil(width / 34) }).map((_, i) => (
+          <line key={i} x1={i * 34} x2={i * 34} y1="0" y2="118" stroke="rgba(148,163,184,0.08)" />
+        ))}
+        <text x="10" y="23" fill="rgba(226,232,240,0.35)" fontFamily="JetBrains Mono" fontSize="11">Q</text>
+        {history.slice(0, -1).map((state, index) => {
+          const next = history[index + 1];
+          const x = 42 + index * 34;
+          const y = state === 1 ? 26 : state === "X" ? 58 : 88;
+          const nextY = next === 1 ? 26 : next === "X" ? 58 : 88;
+          const stroke = state === "X" ? "#fb7185" : state === 1 ? color : "rgba(226,232,240,0.28)";
+          return (
+            <g key={index}>
+              <path d={`M${x} ${y} H${x + 34}`} stroke={stroke} strokeWidth="3" strokeLinecap="round" filter={state === 1 ? `drop-shadow(0 0 6px ${color})` : undefined} />
+              {y !== nextY && <path d={`M${x + 34} ${y} V${nextY}`} stroke={stroke} strokeWidth="3" strokeLinecap="round" />}
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
 export default function FlipFlopLab() {
-  const [ffType, setFFType] = useState<FFType>("SR");
-  const [inputs, setInputs] = useState<Record<string, Bit>>({ S: 0, R: 0 });
-  const [currentState, setCurrentState] = useState<FFState>({ Q: 0, Qbar: 1 });
+  const [type, setType] = useState<FFType>("JK");
+  const [inputs, setInputs] = useState<Record<string, Bit>>(defaultInputs("JK"));
+  const [state, setState] = useState<{ q: State; qbar: State }>({ q: 0, qbar: 1 });
   const [prevQ, setPrevQ] = useState<Bit>(0);
-  const [clockTick, setClockTick] = useState(0);
-  const [isAutoRunning, setIsAutoRunning] = useState(false);
-  const [speed, setSpeed] = useState(1200);
-  const [qHistory, setQHistory] = useState<State[]>([0]);
-  const [isInvalid, setIsInvalid] = useState(false);
+  const [ticks, setTicks] = useState(0);
+  const [history, setHistory] = useState<State[]>([0]);
+  const [running, setRunning] = useState(false);
+  const [speed, setSpeed] = useState(900);
+  const meta = FF_META[type];
 
-  const color = FF_COLORS[ffType];
-
-  const handleClockPulse = useCallback(() => {
-    const pQ = currentState.Q === "X" ? 0 : currentState.Q as Bit;
-    const newState = computeFF(ffType, inputs, pQ);
-    const invalid = newState.Q === "X";
-    setIsInvalid(invalid);
-    setPrevQ(pQ);
-    setCurrentState(newState);
-    setClockTick((t) => t + 1);
-    setQHistory((h) => [...h.slice(-19), newState.Q]);
-  }, [currentState, ffType, inputs]);
+  const pulse = useCallback(() => {
+    const previous = state.q === "X" ? 0 : state.q;
+    const next = nextState(type, inputs, previous);
+    setPrevQ(previous);
+    setState(next);
+    setTicks((value) => value + 1);
+    setHistory((value) => [...value.slice(-22), next.q]);
+  }, [inputs, state.q, type]);
 
   useEffect(() => {
-    if (!isAutoRunning) return;
-    const id = setInterval(handleClockPulse, speed);
-    return () => clearInterval(id);
-  }, [isAutoRunning, handleClockPulse, speed]);
+    if (!running) return;
+    const timer = window.setInterval(pulse, speed);
+    return () => window.clearInterval(timer);
+  }, [pulse, running, speed]);
 
-  const switchFFType = (type: FFType) => {
-    setFFType(type);
-    setIsAutoRunning(false);
-    setClockTick(0);
-    setCurrentState({ Q: 0, Qbar: 1 });
+  const reset = () => {
+    setRunning(false);
+    setState({ q: 0, qbar: 1 });
     setPrevQ(0);
-    setQHistory([0]);
-    setIsInvalid(false);
-    const defaultInputs: Record<FFType, Record<string, Bit>> = {
-      SR: { S: 0, R: 0 },
-      JK: { J: 0, K: 0 },
-      D: { D: 0 },
-      T: { T: 0 },
-    };
-    setInputs(defaultInputs[type]);
+    setTicks(0);
+    setHistory([0]);
   };
 
-  const toggleInput = (key: string) => {
-    setInputs((prev) => ({ ...prev, [key]: (1 - (prev[key] ?? 0)) as Bit }));
-  };
-
-  const explanation = getFFExplanation(ffType, inputs, currentState.Q, prevQ, clockTick);
+  const tableRows = useMemo(() => {
+    if (type === "SR") return [["0", "0", "Hold"], ["0", "1", "Reset"], ["1", "0", "Set"], ["1", "1", "Invalid"]];
+    if (type === "JK") return [["0", "0", "Hold"], ["0", "1", "Reset"], ["1", "0", "Set"], ["1", "1", "Toggle"]];
+    if (type === "D") return [["0", "Q=0"], ["1", "Q=1"]];
+    return [["0", "Hold"], ["1", "Toggle"]];
+  }, [type]);
 
   return (
-    <section id="flipflop" className="relative py-12 md:py-16 px-3 md:px-6">
-      <div className="max-w-[1400px] mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
-            <span className="text-white">Flip-Flop Visualizer</span>
-          </h2>
-          <p className="text-white/40 text-sm md:text-lg max-w-2xl">
-            Simulate SR, JK, D, and T flip-flops with real clock pulses and state history.
+    <section className="page-shell page-transition">
+      <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <div className="eyebrow mb-4">
+            <GitBranch className="h-3.5 w-3.5 text-purple-200" />
+            Flip-Flop Simulator
+          </div>
+          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">Clocked memory with visible edge behavior.</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+            Drive SR, JK, D, and T flip-flops with manual pulses or auto-run mode. Watch Q, Qbar, and the tick timeline respond.
           </p>
-        </motion.div>
-
-        {/* Type selector */}
-        <div className="flex flex-wrap gap-2 md:gap-3 mb-6 md:mb-8">
-          {(["SR", "JK", "D", "T"] as FFType[]).map((type) => (
-            <motion.button
-              key={type}
-              onClick={() => switchFFType(type)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl font-mono font-bold text-xs md:text-sm cursor-pointer"
-              style={{
-                background: ffType === type ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
-                border: ffType === type ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
-                color: ffType === type ? "#fff" : "rgba(255,255,255,0.4)",
-              }}
-            >
-              {type} Flip-Flop
-            </motion.button>
-          ))}
         </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="mono-chip"><TimerReset className="h-3.5 w-3.5" /> tick #{ticks}</span>
+          <span className="mono-chip"><Gauge className="h-3.5 w-3.5" /> {speed}ms</span>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-          {/* Left: State display + inputs */}
-          <div className="lg:col-span-5 flex flex-col gap-3 md:gap-4">
-            {/* Q/Q' State */}
-            <motion.div
-              className="glass-card p-6"
-              animate={isInvalid ? { borderColor: "rgba(244,114,182,0.4)" } : { borderColor: "rgba(255,255,255,0.06)" }}
-            >
-              <h3 className="font-bold text-white/70 text-sm mb-4">Current State</h3>
-              <div className="flex items-center justify-center gap-8">
-                <div className="text-center">
-                  <div className="text-xs font-mono text-white/40 mb-3 uppercase tracking-widest">Q</div>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`Q-${String(currentState.Q)}`}
-                      initial={{ scale: 1.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.5, opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                      className={`state-box w-24 ${currentState.Q === "X" ? "undefined" : currentState.Q === 1 ? "high" : "low"}`}
-                    >
-                      {currentState.Q === "X" ? "?" : currentState.Q}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+        {(Object.keys(FF_META) as FFType[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => {
+              setType(item);
+              setInputs(defaultInputs(item));
+              reset();
+            }}
+            className={`rounded-xl border px-4 py-3 font-mono text-xs font-black transition ${
+              type === item ? "border-purple-300/34 bg-purple-300/12 text-white" : "border-white/10 bg-white/[0.035] text-white/44 hover:text-white"
+            }`}
+          >
+            {item} FF
+          </button>
+        ))}
+      </div>
 
-                <div className="text-white/20 text-3xl font-thin">|</div>
-
-                <div className="text-center">
-                  <div className="text-xs font-mono text-white/40 mb-3 uppercase tracking-widest">Q&apos;</div>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`Qbar-${String(currentState.Qbar)}`}
-                      initial={{ scale: 1.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.5, opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                      className={`state-box w-24 ${currentState.Qbar === "X" ? "undefined" : currentState.Qbar === 1 ? "high" : "low"}`}
-                    >
-                      {currentState.Qbar === "X" ? "?" : currentState.Qbar}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* Invalid state warning */}
-              <AnimatePresence>
-                {isInvalid && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
-                    style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.3)", color: "#f472b6" }}
-                  >
-                    ⚠️ INVALID STATE — Output is indeterminate!
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* Inputs */}
-            <div className="glass-card p-5">
-              <h3 className="font-bold text-white/70 text-sm mb-4">Inputs</h3>
-              <div className="flex gap-6 justify-center">
-                {FF_INPUTS[ffType].map((key) => (
-                  <div key={key} className="flex flex-col items-center gap-3">
-                    <span className="text-xs font-mono text-white/40 uppercase tracking-widest">{key}</span>
-                    <motion.button
-                      onClick={() => toggleInput(key)}
-                      whileTap={{ scale: 0.92 }}
-                      className={`toggle-switch ${inputs[key] === 1 ? "on" : ""} cursor-pointer`}
-                    >
-                      <motion.div
-                        layout
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className="toggle-thumb"
-                      />
-                    </motion.button>
-                    <motion.span
-                      key={inputs[key]}
-                      initial={{ scale: 1.5 }}
-                      animate={{ scale: 1 }}
-                      className="font-mono text-lg font-bold"
-                      style={{ color: inputs[key] === 1 ? "#34d399" : "rgba(255,255,255,0.3)" }}
-                    >
-                      {inputs[key]}
-                    </motion.span>
-                  </div>
-                ))}
-              </div>
+      <div className="lab-grid">
+        <div className="premium-card p-4 md:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="font-mono text-xs font-black uppercase tracking-widest text-white/36">hardware display</div>
+              <h2 className="mt-1 text-2xl font-black text-white">{type} Flip-Flop</h2>
             </div>
-
-            {/* Characteristic table */}
-            <div className="glass-card overflow-hidden">
-              <div className="p-3 border-b border-white/5">
-                <span className="text-xs font-bold text-white/50 uppercase tracking-wider">Characteristic Table</span>
-              </div>
-              <table className="truth-table w-full text-xs">
-                <thead>
-                  <tr>
-                    {FF_INPUTS[ffType].map((k) => <th key={k}>{k}</th>)}
-                    <th>Qn</th>
-                    <th style={{ color }}>Q(n+1)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ffType === "SR" && (
-                    <>
-                      <tr><td>0</td><td>0</td><td>Q</td><td style={{color:"rgba(255,255,255,0.5)"}}>No change</td></tr>
-                      <tr><td>0</td><td>1</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>0</td></tr>
-                      <tr><td>1</td><td>0</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>1</td></tr>
-                      <tr><td style={{color:"#f472b6"}}>1</td><td style={{color:"#f472b6"}}>1</td><td>×</td><td style={{color:"#f472b6"}}>?</td></tr>
-                    </>
-                  )}
-                  {ffType === "JK" && (
-                    <>
-                      <tr><td>0</td><td>0</td><td>Q</td><td style={{color:"rgba(255,255,255,0.5)"}}>Q (hold)</td></tr>
-                      <tr><td>0</td><td>1</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>0</td></tr>
-                      <tr><td>1</td><td>0</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>1</td></tr>
-                      <tr><td style={{color:"#60a5fa"}}>1</td><td style={{color:"#60a5fa"}}>1</td><td>×</td><td style={{color:"#60a5fa"}}>Q̄</td></tr>
-                    </>
-                  )}
-                  {ffType === "D" && (
-                    <>
-                      <tr><td>0</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>0</td></tr>
-                      <tr><td>1</td><td>×</td><td style={{color:"#34d399",textShadow:"0 0 6px rgba(52,211,153,0.4)"}}>1</td></tr>
-                    </>
-                  )}
-                  {ffType === "T" && (
-                    <>
-                      <tr><td>0</td><td>Q</td><td style={{color:"rgba(255,255,255,0.5)"}}>Q (hold)</td></tr>
-                      <tr><td>1</td><td>Q</td><td style={{color:"#f472b6",textShadow:"0 0 6px rgba(244,114,182,0.4)"}}>Q̄ (toggle)</td></tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
+            <div className="flex gap-2">
+              <button className="premium-button primary" onClick={pulse}>
+                <Play className="h-4 w-4" />
+                Pulse
+              </button>
+              <button className="premium-button" onClick={() => setRunning((value) => !value)}>
+                {running ? <Pause className="h-4 w-4" /> : <Activity className="h-4 w-4" />}
+                {running ? "Pause" : "Auto"}
+              </button>
+              <button className="icon-button" onClick={reset} aria-label="Reset">
+                <RotateCcw className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
-          {/* Right: Clock + history + explanation */}
-          <div className="lg:col-span-7 flex flex-col gap-3 md:gap-4">
-            {/* Clock controls */}
-            <div className="glass-card p-5">
-              <ClockPulseViz tick={clockTick} isRunning={isAutoRunning} speed={speed} />
+          <div className="canvas-grid rounded-2xl border border-white/10 p-4">
+            <div className="grid gap-4 md:grid-cols-[0.78fr_1.22fr]">
+              <div className="grid gap-3">
+                <div className="glass-panel-soft p-4">
+                  <div className="mb-4 font-mono text-xs font-black uppercase tracking-widest text-white/36">inputs</div>
+                  <div className="grid gap-3">
+                    {meta.inputs.map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => setInputs((value) => ({ ...value, [key]: value[key] ? 0 : 1 }))}
+                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] p-3"
+                      >
+                        <span className="font-mono text-lg font-black" style={{ color: meta.color }}>{key}</span>
+                        <span className={`toggle-track ${inputs[key] ? "on" : ""}`}>
+                          <motion.span layout className="toggle-thumb" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="glass-panel-soft p-4">
+                  <div className="mb-2 font-mono text-xs font-black uppercase tracking-widest text-white/36">speed</div>
+                  <input type="range" min="300" max="1800" step="100" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="w-full accent-cyan-300" />
+                </div>
+              </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <motion.button
-                  onClick={handleClockPulse}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="neon-btn neon-btn-amber flex items-center gap-2 cursor-pointer"
-                >
-                  <span>▶</span> Clock Pulse
-                </motion.button>
-
-                <motion.button
-                  onClick={() => setIsAutoRunning((r) => !r)}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`neon-btn cursor-pointer ${isAutoRunning ? "neon-btn-emerald" : "neon-btn-sky"}`}
-                >
-                  {isAutoRunning ? "⏸ Pause" : "⏩ Auto Run"}
-                </motion.button>
-
-                <motion.button
-                  onClick={() => {
-                    setIsAutoRunning(false);
-                    setClockTick(0);
-                    setCurrentState({ Q: 0, Qbar: 1 });
-                    setPrevQ(0);
-                    setQHistory([0]);
-                    setIsInvalid(false);
-                  }}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="neon-btn cursor-pointer text-white/40 border border-white/10 hover:border-white/20"
-                >
-                  ↺ Reset
-                </motion.button>
-
-                <div className="flex items-center gap-2 ml-auto">
-                  <span className="text-xs text-white/40">Speed:</span>
-                  {[2000, 1200, 600].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSpeed(s)}
-                      className="text-xs px-2 py-1 rounded cursor-pointer"
-                      style={{
-                        background: speed === s ? `${color}18` : "rgba(255,255,255,0.05)",
-                        border: speed === s ? `1px solid ${color}40` : "1px solid transparent",
-                        color: speed === s ? color : "rgba(255,255,255,0.4)",
-                      }}
-                    >
-                      {s === 2000 ? "Slow" : s === 1200 ? "Normal" : "Fast"}
-                    </button>
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#050812]/72 p-5">
+                <div className="absolute inset-x-0 top-1/2 h-px bg-cyan-200/10" />
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    ["Q", state.q],
+                    ["Qbar", state.qbar],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center">
+                      <div className="mb-3 font-mono text-xs font-black uppercase tracking-widest text-white/36">{label}</div>
+                      <AnimatePresence mode="wait">
+                        <motion.div key={`${label}-${value}`} initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.2, opacity: 0 }} className={`font-mono text-7xl font-black ${value === "X" ? "text-[#fb7185]" : value === 1 ? "signal-high" : "signal-low"}`}>
+                          {value === "X" ? "?" : value}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
                   ))}
+                </div>
+                <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="mb-3 flex items-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-white/36">
+                    <Activity className="h-3.5 w-3.5" />
+                    clock bus
+                  </div>
+                  <svg viewBox="0 0 500 74" className="h-20 w-full" preserveAspectRatio="none">
+                    {Array.from({ length: 10 }).map((_, index) => {
+                      const x = index * 50;
+                      const active = ticks > index || running;
+                      return (
+                        <path key={index} d={`M${x} 56 H${x + 25} V18 H${x + 50}`} fill="none" stroke={active ? meta.color : "rgba(226,232,240,0.16)"} strokeWidth="3" strokeLinejoin="round" filter={active ? `drop-shadow(0 0 5px ${meta.color})` : undefined} />
+                      );
+                    })}
+                  </svg>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Q history waveform */}
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-white/70 text-sm">Q Output History</h3>
-                <span className="text-xs font-mono text-white/30">{qHistory.length} ticks</span>
-              </div>
-
-              <div className="relative h-12 mb-3">
-                <svg viewBox={`0 0 ${Math.max(qHistory.length - 1, 1) * 24} 48`} className="w-full h-full" preserveAspectRatio="none">
-                  {qHistory.map((state, i) => {
-                    if (i === qHistory.length - 1) return null;
-                    const x = i * 24;
-                    const y1 = state === 1 ? 8 : 36;
-                    const y2 = qHistory[i + 1] === 1 ? 8 : 36;
-                    const x2 = (i + 1) * 24;
-                    const stateColor = state === "X" ? "#f472b6" : state === 1 ? "#34d399" : "rgba(255,255,255,0.25)";
-                    return (
-                      <g key={i}>
-                        <line x1={x} y1={y1} x2={x2} y2={y1} stroke={stateColor} strokeWidth="2"
-                          style={state === 1 ? { filter: "drop-shadow(0 0 3px #34d399)" } : {}} />
-                        {y1 !== y2 && <line x1={x2} y1={y1} x2={x2} y2={y2} stroke={stateColor} strokeWidth="2" />}
-                      </g>
-                    );
-                  })}
-                </svg>
-              </div>
-
-              <StateHistory history={qHistory} color={color} />
+        <div className="grid gap-4">
+          <div className="premium-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-black text-white">Q Timeline</h3>
+              <span className="mono-chip">{history.length} samples</span>
             </div>
+            <Waveform history={history} color={meta.color} />
+          </div>
 
-            {/* Smart explanation */}
-            <div className="smart-panel flex-1">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#e8a849", boxShadow: "0 0 8px #e8a849" }} />
-                <span className="text-xs font-mono text-[#e8a849] uppercase tracking-widest">Smart Insight</span>
-              </div>
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={`${ffType}-${Object.values(inputs).join("")}-${clockTick}`}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25 }}
-                  className="text-sm text-white/70 leading-relaxed"
-                >
-                  {explanation}
-                </motion.p>
-              </AnimatePresence>
+          <div className="glass-panel p-5">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
+              <Sparkles className="h-4 w-4 text-amber-200" />
+              Smart insight
             </div>
+            <AnimatePresence mode="wait">
+              <motion.p key={`${type}-${Object.values(inputs).join("")}-${ticks}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="text-sm leading-7 text-white/58">
+                {explain(type, inputs, prevQ, state.q, ticks)}
+              </motion.p>
+            </AnimatePresence>
+          </div>
 
-            {/* FF description */}
-            <div className="glass-card p-4" style={{ borderColor: `${color}18` }}>
-              <h4 className="font-bold mb-1 text-sm" style={{ color }}>{ffType} Flip-Flop</h4>
-              <p className="text-xs text-white/50 leading-relaxed">{FF_DESCRIPTIONS[ffType]}</p>
+          <div className="premium-card overflow-hidden">
+            <div className="border-b border-white/8 p-4">
+              <h3 className="font-black text-white">Characteristic Table</h3>
+              <p className="mt-1 text-sm text-white/42">{meta.description}</p>
+            </div>
+            <table className="truth-table">
+              <tbody>
+                {tableRows.map((row) => (
+                  <tr key={row.join("-")}>
+                    {row.map((cell) => <td key={cell}>{cell}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="glass-panel-soft p-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-white">
+              <History className="h-4 w-4 text-cyan-200" />
+              The timeline keeps the last 23 Q samples so transitions stay readable.
             </div>
           </div>
         </div>

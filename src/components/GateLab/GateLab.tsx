@@ -1,205 +1,273 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Cpu, Info, Layers3, Lightbulb, RadioTower, Sparkles, Waves } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type GateType = "AND" | "OR" | "NOT" | "NAND" | "NOR" | "XOR" | "XNOR";
 type Bit = 0 | 1;
 
-const GATE_COLORS: Record<GateType, string> = {
-  AND: "#e8a849", OR: "#34d399", NOT: "#f472b6",
-  NAND: "#60a5fa", NOR: "#fb923c", XOR: "#2dd4bf", XNOR: "#a78bfa",
-};
-
-const GATE_DESCRIPTIONS: Record<GateType, string> = {
-  AND: "Output is HIGH only when ALL inputs are HIGH.", OR: "Output is HIGH when AT LEAST ONE input is HIGH.",
-  NOT: "Inverts the input signal.", NAND: "NOT-AND — Universal gate. Output LOW only when all inputs HIGH.",
-  NOR: "NOT-OR — Universal gate. Output HIGH only when all inputs LOW.",
-  XOR: "Exclusive OR — Output HIGH when inputs DIFFER.", XNOR: "Exclusive NOR — Output HIGH when inputs are SAME.",
+const GATES: Record<GateType, { color: string; expression: string; description: string }> = {
+  AND: { color: "#22d3ee", expression: "Y = A * B", description: "Output is high only when every input is high." },
+  OR: { color: "#41f29a", expression: "Y = A + B", description: "Output is high when at least one input is high." },
+  NOT: { color: "#fb7185", expression: "Y = NOT A", description: "Output is the inverted value of the input." },
+  NAND: { color: "#75a7ff", expression: "Y = NOT(A * B)", description: "Universal gate. Output is low only when all inputs are high." },
+  NOR: { color: "#f6b84b", expression: "Y = NOT(A + B)", description: "Universal gate. Output is high only when all inputs are low." },
+  XOR: { color: "#a78bfa", expression: "Y = A XOR B", description: "Output is high when the inputs differ." },
+  XNOR: { color: "#f0abfc", expression: "Y = NOT(A XOR B)", description: "Output is high when the inputs match." },
 };
 
 function computeGate(gate: GateType, a: Bit, b: Bit): Bit {
   switch (gate) {
-    case "AND": return (a & b) as Bit;
-    case "OR": return (a | b) as Bit;
-    case "NOT": return (a === 0 ? 1 : 0) as Bit;
-    case "NAND": return ((a & b) === 1 ? 0 : 1) as Bit;
-    case "NOR": return ((a | b) === 0 ? 1 : 0) as Bit;
-    case "XOR": return (a ^ b) as Bit;
-    case "XNOR": return ((a ^ b) === 0 ? 1 : 0) as Bit;
+    case "AND":
+      return (a & b) as Bit;
+    case "OR":
+      return (a | b) as Bit;
+    case "NOT":
+      return (a === 0 ? 1 : 0) as Bit;
+    case "NAND":
+      return ((a & b) === 1 ? 0 : 1) as Bit;
+    case "NOR":
+      return ((a | b) === 0 ? 1 : 0) as Bit;
+    case "XOR":
+      return (a ^ b) as Bit;
+    case "XNOR":
+      return ((a ^ b) === 0 ? 1 : 0) as Bit;
   }
 }
 
-function getTruthTable(gate: GateType): Array<[Bit, Bit, Bit]> {
-  if (gate === "NOT") return [[0, 0, computeGate("NOT", 0, 0)], [1, 0, computeGate("NOT", 1, 0)]];
-  return [[0, 0, computeGate(gate, 0, 0)], [0, 1, computeGate(gate, 0, 1)], [1, 0, computeGate(gate, 1, 0)], [1, 1, computeGate(gate, 1, 1)]];
+function truthTable(gate: GateType): Array<[Bit, Bit, Bit]> {
+  if (gate === "NOT") return [[0, 0, computeGate(gate, 0, 0)], [1, 0, computeGate(gate, 1, 0)]];
+  return [
+    [0, 0, computeGate(gate, 0, 0)],
+    [0, 1, computeGate(gate, 0, 1)],
+    [1, 0, computeGate(gate, 1, 0)],
+    [1, 1, computeGate(gate, 1, 1)],
+  ];
 }
 
-function getExplanation(gate: GateType, a: Bit, b: Bit, out: Bit): string {
-  const outStr = out === 1 ? "HIGH (1)" : "LOW (0)";
-  switch (gate) {
-    case "AND": return out === 1 ? `Both inputs HIGH → AND outputs ${outStr}` : `At least one input LOW → AND outputs ${outStr}`;
-    case "OR": return out === 1 ? `At least one input HIGH → OR outputs ${outStr}` : `Both inputs LOW → OR outputs ${outStr}`;
-    case "NOT": return `Input is ${a} → NOT inverts → outputs ${outStr}`;
-    case "NAND": return out === 0 ? `Both inputs HIGH → NAND outputs ${outStr}` : `Not all inputs HIGH → NAND outputs ${outStr}`;
-    case "NOR": return out === 1 ? `All inputs LOW → NOR outputs ${outStr}` : `At least one HIGH → NOR outputs ${outStr}`;
-    case "XOR": return out === 1 ? `Inputs differ (${a}≠${b}) → XOR outputs ${outStr}` : `Inputs equal (${a}=${b}) → XOR outputs ${outStr}`;
-    case "XNOR": return out === 1 ? `Inputs equal → XNOR outputs ${outStr}` : `Inputs differ → XNOR outputs ${outStr}`;
-  }
+function explanation(gate: GateType, a: Bit, b: Bit, output: Bit) {
+  if (gate === "NOT") return `A is ${a}, so the inverter drives Y to ${output}.`;
+  if (gate === "AND") return output ? "Both inputs are high, so the AND channel opens." : "At least one input is low, so AND blocks the output.";
+  if (gate === "OR") return output ? "A high input is present, so OR raises the output." : "Both inputs are low, so OR remains low.";
+  if (gate === "NAND") return output ? "The AND condition is not fully true, so NAND stays high." : "Both inputs are high, so NAND inverts the result to low.";
+  if (gate === "NOR") return output ? "No high input is present, so NOR outputs high." : "At least one high input is present, so NOR drops low.";
+  if (gate === "XOR") return output ? `Inputs differ (${a}, ${b}), so XOR fires.` : "Inputs match, so XOR stays low.";
+  return output ? "Inputs match, so XNOR outputs high." : `Inputs differ (${a}, ${b}), so XNOR drops low.`;
 }
 
-function GateSVG({ gate, a, b, out, color }: { gate: GateType; a: Bit; b: Bit; out: Bit; color: string }) {
+function GateShape({ gate, color, a, b, output }: { gate: GateType; color: string; a: Bit; b: Bit; output: Bit }) {
+  const active = "#41f29a";
+  const quiet = "rgba(226,232,240,0.2)";
   const single = gate === "NOT";
-  const activeWire = "#34d399";
-
-  const shape = () => {
-    switch (gate) {
-      case "AND": return <path d="M 40 30 L 70 30 Q 95 30 95 55 Q 95 80 70 80 L 40 80 Z" fill="none" stroke={color} strokeWidth="2" />;
-      case "OR": return <path d="M 40 30 Q 55 55 40 80 Q 60 70 80 55 Q 60 40 40 30 Z" fill="none" stroke={color} strokeWidth="2" />;
-      case "NOT": return <><path d="M 40 35 L 40 75 L 80 55 Z" fill="none" stroke={color} strokeWidth="2" /><circle cx="84" cy="55" r="4" fill="none" stroke={color} strokeWidth="2" /></>;
-      case "NAND": return <><path d="M 40 30 L 70 30 Q 90 30 90 55 Q 90 80 70 80 L 40 80 Z" fill="none" stroke={color} strokeWidth="2" /><circle cx="94" cy="55" r="4" fill="none" stroke={color} strokeWidth="2" /></>;
-      case "NOR": return <><path d="M 40 30 Q 55 55 40 80 Q 60 70 78 55 Q 60 40 40 30 Z" fill="none" stroke={color} strokeWidth="2" /><circle cx="82" cy="55" r="4" fill="none" stroke={color} strokeWidth="2" /></>;
-      case "XOR": return <><path d="M 40 30 Q 55 55 40 80 Q 60 70 80 55 Q 60 40 40 30 Z" fill="none" stroke={color} strokeWidth="2" /><path d="M 35 30 Q 50 55 35 80" fill="none" stroke={color} strokeWidth="2" /></>;
-      case "XNOR": return <><path d="M 40 30 Q 55 55 40 80 Q 60 70 76 55 Q 60 40 40 30 Z" fill="none" stroke={color} strokeWidth="2" /><path d="M 35 30 Q 50 55 35 80" fill="none" stroke={color} strokeWidth="2" /><circle cx="80" cy="55" r="4" fill="none" stroke={color} strokeWidth="2" /></>;
-    }
-  };
-
-  const outX = ["NOT", "NAND", "NOR", "XNOR"].includes(gate) ? 88 : 95;
+  const shape = {
+    AND: "M120 76 L182 76 C232 76 232 164 182 164 L120 164 Z",
+    OR: "M116 76 C152 98 152 142 116 164 C168 154 210 138 236 120 C210 102 168 86 116 76 Z",
+    NOT: "M128 78 L128 162 L214 120 Z",
+    NAND: "M120 76 L178 76 C224 76 224 164 178 164 L120 164 Z",
+    NOR: "M116 76 C152 98 152 142 116 164 C166 154 206 138 230 120 C206 102 166 86 116 76 Z",
+    XOR: "M116 76 C152 98 152 142 116 164 C168 154 210 138 236 120 C210 102 168 86 116 76 Z",
+    XNOR: "M116 76 C152 98 152 142 116 164 C166 154 206 138 230 120 C206 102 166 86 116 76 Z",
+  }[gate];
+  const outStart = ["NOT", "NAND", "NOR", "XNOR"].includes(gate) ? 236 : 236;
 
   return (
-    <svg viewBox="0 0 140 110" className="w-full h-full">
-      <g style={{ filter: `drop-shadow(0 0 6px ${color}60)` }}>{shape()}</g>
-      {!single && <>
-        <line x1="10" y1="40" x2="40" y2="40" stroke={a === 1 ? activeWire : "rgba(255,255,255,0.15)"} strokeWidth="2.5" style={a === 1 ? { filter: `drop-shadow(0 0 4px ${activeWire})` } : {}} />
-        <line x1="10" y1="70" x2="40" y2="70" stroke={b === 1 ? activeWire : "rgba(255,255,255,0.15)"} strokeWidth="2.5" style={b === 1 ? { filter: `drop-shadow(0 0 4px ${activeWire})` } : {}} />
-      </>}
-      {single && <line x1="10" y1="55" x2="40" y2="55" stroke={a === 1 ? activeWire : "rgba(255,255,255,0.15)"} strokeWidth="2.5" style={a === 1 ? { filter: `drop-shadow(0 0 4px ${activeWire})` } : {}} />}
-      <line x1={outX} y1="55" x2="130" y2="55" stroke={out === 1 ? activeWire : "rgba(255,255,255,0.15)"} strokeWidth="2.5" style={out === 1 ? { filter: `drop-shadow(0 0 4px ${activeWire})` } : {}} />
-      {a === 1 && !single && <circle r="3" fill={activeWire} style={{ filter: `drop-shadow(0 0 4px ${activeWire})` }}><animate attributeName="cx" from="10" to="38" dur="1s" repeatCount="indefinite" /><animate attributeName="cy" values="40" dur="1s" repeatCount="indefinite" /></circle>}
-      {b === 1 && !single && <circle r="3" fill={activeWire} style={{ filter: `drop-shadow(0 0 4px ${activeWire})` }}><animate attributeName="cx" from="10" to="38" dur="1s" repeatCount="indefinite" /><animate attributeName="cy" values="70" dur="1s" repeatCount="indefinite" /></circle>}
-      {a === 1 && single && <circle r="3" fill={activeWire} style={{ filter: `drop-shadow(0 0 4px ${activeWire})` }}><animate attributeName="cx" from="10" to="38" dur="1s" repeatCount="indefinite" /><animate attributeName="cy" values="55" dur="1s" repeatCount="indefinite" /></circle>}
-      {out === 1 && <circle r="3" fill={activeWire} style={{ filter: `drop-shadow(0 0 4px ${activeWire})` }}><animate attributeName="cx" from="95" to="128" dur="1s" repeatCount="indefinite" /><animate attributeName="cy" values="55" dur="1s" repeatCount="indefinite" /></circle>}
-      {!single && <>
-        <text x="6" y="37" fill="rgba(255,255,255,0.5)" fontSize="9" fontFamily="JetBrains Mono,monospace">A</text>
-        <text x="6" y="67" fill="rgba(255,255,255,0.5)" fontSize="9" fontFamily="JetBrains Mono,monospace">B</text>
-      </>}
-      {single && <text x="6" y="52" fill="rgba(255,255,255,0.5)" fontSize="9" fontFamily="JetBrains Mono,monospace">A</text>}
-      <text x="127" y="52" fill="rgba(255,255,255,0.5)" fontSize="9" fontFamily="JetBrains Mono,monospace">Y</text>
+    <svg viewBox="0 0 360 240" className="h-full w-full">
+      <defs>
+        <filter id="gateGlow">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path d={shape} fill="rgba(15,23,42,0.76)" stroke={color} strokeWidth="3" filter="url(#gateGlow)" />
+      {(gate === "NAND" || gate === "NOR" || gate === "XNOR" || gate === "NOT") && <circle cx="232" cy="120" r="10" fill="rgba(2,4,10,0.9)" stroke={color} strokeWidth="3" />}
+      {(gate === "XOR" || gate === "XNOR") && <path d="M98 76 C134 98 134 142 98 164" fill="none" stroke={color} strokeWidth="3" opacity="0.85" />}
+      {!single && (
+        <>
+          <path d="M34 94 H120" stroke={a ? active : quiet} strokeWidth="4" strokeLinecap="round" className={a ? "wire-flow" : ""} />
+          <path d="M34 146 H120" stroke={b ? active : quiet} strokeWidth="4" strokeLinecap="round" className={b ? "wire-flow" : ""} />
+          <text x="24" y="90" fill="rgba(226,232,240,0.5)" fontFamily="JetBrains Mono" fontSize="13" fontWeight="700">A</text>
+          <text x="24" y="142" fill="rgba(226,232,240,0.5)" fontFamily="JetBrains Mono" fontSize="13" fontWeight="700">B</text>
+        </>
+      )}
+      {single && (
+        <>
+          <path d="M34 120 H128" stroke={a ? active : quiet} strokeWidth="4" strokeLinecap="round" className={a ? "wire-flow" : ""} />
+          <text x="24" y="116" fill="rgba(226,232,240,0.5)" fontFamily="JetBrains Mono" fontSize="13" fontWeight="700">A</text>
+        </>
+      )}
+      <path d={`M${outStart} 120 H326`} stroke={output ? active : quiet} strokeWidth="4" strokeLinecap="round" className={output ? "wire-flow" : ""} />
+      <text x="331" y="116" fill="rgba(226,232,240,0.5)" fontFamily="JetBrains Mono" fontSize="13" fontWeight="700">Y</text>
+      {[a, single ? null : b, output].map((value, index) =>
+        value === 1 ? (
+          <motion.circle
+            key={`${index}-${value}`}
+            cx={index === 2 ? 304 : 62}
+            cy={index === 0 ? (single ? 120 : 94) : index === 1 ? 146 : 120}
+            r="5"
+            fill={active}
+            initial={{ scale: 0.4, opacity: 0.2 }}
+            animate={{ scale: [0.6, 1.3, 0.6], opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+          />
+        ) : null,
+      )}
     </svg>
   );
 }
 
-function Toggle({ value, onChange, label }: { value: Bit; onChange: (v: Bit) => void; label: string }) {
+function Toggle({ label, value, onChange }: { label: string; value: Bit; onChange: (value: Bit) => void }) {
   return (
-    <motion.div className="flex flex-col items-center gap-2 md:gap-3">
-      <span className="text-[10px] md:text-xs font-mono text-white/40 uppercase tracking-widest">{label}</span>
-      <motion.button onClick={() => onChange(value === 0 ? 1 : 0)} whileTap={{ scale: 0.92 }} className={`toggle-switch ${value === 1 ? "on" : ""} cursor-pointer`}>
-        <motion.div layout transition={{ type: "spring", stiffness: 500, damping: 30 }} className="toggle-thumb" />
-      </motion.button>
-      <motion.span key={value} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="font-mono text-lg md:text-xl font-bold" style={{ color: value === 1 ? "#34d399" : "rgba(255,255,255,0.3)" }}>{value}</motion.span>
-    </motion.div>
+    <button className="glass-panel-soft flex items-center justify-between gap-5 p-3 text-left" onClick={() => onChange(value ? 0 : 1)}>
+      <span>
+        <span className="block font-mono text-xs font-bold uppercase tracking-widest text-white/38">{label}</span>
+        <span className={`mt-1 block font-mono text-2xl font-black ${value ? "signal-high" : "signal-low"}`}>{value}</span>
+      </span>
+      <span className={`toggle-track ${value ? "on" : ""}`}>
+        <motion.span layout className="toggle-thumb" />
+      </span>
+    </button>
   );
 }
 
 export default function GateLab() {
-  const [selectedGate, setSelectedGate] = useState<GateType>("AND");
-  const [inputA, setInputA] = useState<Bit>(0);
-  const [inputB, setInputB] = useState<Bit>(0);
-  const isSingle = selectedGate === "NOT";
-  const output = computeGate(selectedGate, inputA, inputB);
-  const truthTable = useMemo(() => getTruthTable(selectedGate), [selectedGate]);
-  const explanation = getExplanation(selectedGate, inputA, inputB, output);
-  const color = GATE_COLORS[selectedGate];
-  const activeRow = isSingle ? inputA : inputA * 2 + inputB;
+  const [gate, setGate] = useState<GateType>("XOR");
+  const [a, setA] = useState<Bit>(1);
+  const [b, setB] = useState<Bit>(0);
+  const meta = GATES[gate];
+  const output = computeGate(gate, a, b);
+  const rows = useMemo(() => truthTable(gate), [gate]);
+  const activeIndex = gate === "NOT" ? a : a * 2 + b;
 
   return (
-    <section id="gate-lab" className="relative py-12 md:py-16 px-3 md:px-6">
-      <div className="max-w-[1400px] mx-auto">
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8 md:mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
-            <span className="text-white">Logic Gate Playground</span>
-          </h2>
-          <p className="text-white/40 text-sm md:text-lg max-w-2xl">Select a gate, toggle inputs, and watch signal flow animate in real-time.</p>
-        </motion.div>
-
-        {/* Gate selector */}
-        <div className="flex flex-wrap gap-1.5 md:gap-2 mb-6 md:mb-8">
-          {(Object.keys(GATE_COLORS) as GateType[]).map((gate) => (
-            <motion.button key={gate} onClick={() => { setSelectedGate(gate); setInputA(0); setInputB(0); }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              className="px-3 md:px-5 py-1.5 md:py-2 rounded-lg font-mono font-bold text-xs md:text-sm cursor-pointer"
-              style={{ background: selectedGate === gate ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)", border: selectedGate === gate ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)", color: selectedGate === gate ? "#fff" : "rgba(255,255,255,0.4)" }}
-            >{gate}</motion.button>
-          ))}
+    <section className="page-shell page-transition">
+      <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <div className="eyebrow mb-4">
+            <Cpu className="h-3.5 w-3.5 text-cyan-200" />
+            Logic Gates Playground
+          </div>
+          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">Signal behavior you can see, not memorize.</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+            Toggle inputs, change gate families, and watch truth tables, wiring, expressions, and explanations update together.
+          </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="mono-chip"><RadioTower className="h-3.5 w-3.5" /> live signal</span>
+          <span className="mono-chip"><Waves className="h-3.5 w-3.5" /> waveform</span>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
-          {/* Gate viz */}
-          <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="md:col-span-1 lg:col-span-5 glass-card p-4 md:p-6 flex flex-col gap-4 md:gap-6">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white/80 text-sm md:text-base">{selectedGate} Gate</h3>
-              <motion.span key={selectedGate} initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="font-mono text-sm px-3 py-1 rounded-full" style={{ background: `${color}12`, border: `1px solid ${color}30`, color }}>Y = {output}</motion.span>
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+        {(Object.keys(GATES) as GateType[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => {
+              setGate(item);
+              setA(item === "XOR" ? 1 : 0);
+              setB(0);
+            }}
+            className={`rounded-xl border px-4 py-3 font-mono text-xs font-black transition ${
+              gate === item ? "border-cyan-300/34 bg-cyan-300/12 text-white" : "border-white/10 bg-white/[0.035] text-white/44 hover:text-white"
+            }`}
+            style={{ boxShadow: gate === item ? `0 0 28px ${GATES[item].color}22` : undefined }}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <div className="lab-grid">
+        <div className="premium-card min-h-[540px] p-4 md:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-mono text-xs font-black uppercase tracking-widest text-white/36">active diagram</div>
+              <h2 className="mt-1 text-2xl font-black text-white">{gate} Gate</h2>
             </div>
-            <div className="relative h-28 md:h-36 flex items-center justify-center">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-center">
+              <div className="font-mono text-xs font-bold text-white/36">OUTPUT Y</div>
               <AnimatePresence mode="wait">
-                <motion.div key={selectedGate} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }} className="w-full h-full">
-                  <GateSVG gate={selectedGate} a={inputA} b={inputB} out={output} color={color} />
+                <motion.div key={output} initial={{ y: 10, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -10, opacity: 0 }} className={`font-mono text-4xl font-black ${output ? "signal-high" : "signal-low"}`}>
+                  {output}
                 </motion.div>
               </AnimatePresence>
             </div>
-            <div className="flex items-center justify-center gap-8 md:gap-10">
-              <Toggle value={inputA} onChange={setInputA} label="Input A" />
-              {!isSingle && <Toggle value={inputB} onChange={setInputB} label="Input B" />}
-            </div>
-            <div className="flex justify-center">
-              <div className="text-center">
-                <span className="text-[10px] md:text-xs font-mono text-white/40 uppercase tracking-widest block mb-2">Output Y</span>
-                <motion.div key={output} initial={{ scale: 1.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 400 }} className={`state-box w-20 md:w-24 ${output === 1 ? "high" : "low"}`}>{output}</motion.div>
-              </div>
-            </div>
-          </motion.div>
+          </div>
+          <div className="canvas-grid relative h-[320px] overflow-hidden rounded-2xl border border-white/10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_32rem)]" />
+            <GateShape gate={gate} color={meta.color} a={a} b={b} output={output} />
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Toggle label="Input A" value={a} onChange={setA} />
+            {gate !== "NOT" && <Toggle label="Input B" value={b} onChange={setB} />}
+          </div>
+        </div>
 
-          {/* Truth table */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="md:col-span-1 lg:col-span-3 glass-card overflow-hidden">
-            <div className="p-3 md:p-4 border-b border-white/5"><h3 className="font-bold text-white/80 text-sm">Truth Table</h3></div>
-            <table className="truth-table w-full">
-              <thead><tr><th>A</th>{!isSingle && <th>B</th>}<th style={{ color }}>Y</th></tr></thead>
+        <div className="grid gap-4">
+          <div className="premium-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/8 p-4">
+              <h3 className="font-black text-white">Truth Table</h3>
+              <span className="mono-chip" style={{ color: meta.color }}>{meta.expression}</span>
+            </div>
+            <table className="truth-table">
+              <thead>
+                <tr>
+                  <th>A</th>
+                  {gate !== "NOT" && <th>B</th>}
+                  <th>Y</th>
+                </tr>
+              </thead>
               <tbody>
-                {truthTable.map(([a, b, y], i) => (
-                  <motion.tr key={i} className={activeRow === i ? "active" : ""} animate={activeRow === i ? { backgroundColor: `${color}0a` } : { backgroundColor: "rgba(0,0,0,0)" }}>
-                    <td style={{ color: activeRow === i ? color : "rgba(255,255,255,0.5)" }}>{a}</td>
-                    {!isSingle && <td style={{ color: activeRow === i ? color : "rgba(255,255,255,0.5)" }}>{b}</td>}
-                    <td><span className="font-bold" style={{ color: y === 1 ? "#34d399" : "rgba(255,255,255,0.3)", textShadow: y === 1 ? "0 0 10px rgba(52,211,153,0.4)" : "none" }}>{y}</span></td>
+                {rows.map(([ra, rb, ry], index) => (
+                  <motion.tr key={`${ra}-${rb}-${ry}`} className={index === activeIndex ? "active" : ""} animate={index === activeIndex ? { scale: 1.015 } : { scale: 1 }}>
+                    <td>{ra}</td>
+                    {gate !== "NOT" && <td>{rb}</td>}
+                    <td className={ry ? "signal-high" : "signal-low"}>{ry}</td>
                   </motion.tr>
                 ))}
               </tbody>
             </table>
-          </motion.div>
+          </div>
 
-          {/* Info panels */}
-          <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="md:col-span-2 lg:col-span-4 flex flex-col gap-3 md:gap-4">
-            <div className="smart-panel flex-1">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#e8a849", boxShadow: "0 0 8px #e8a849" }} />
-                <span className="text-[10px] md:text-xs font-mono text-[#e8a849] uppercase tracking-widest">Smart Insight</span>
-              </div>
-              <AnimatePresence mode="wait">
-                <motion.p key={`${selectedGate}-${inputA}-${inputB}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="text-xs md:text-sm text-white/70 leading-relaxed">{explanation}</motion.p>
-              </AnimatePresence>
+          <div className="glass-panel p-5">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
+              <Sparkles className="h-4 w-4 text-amber-200" />
+              Smart insight
             </div>
-            <div className="glass-card p-3 md:p-4" style={{ borderColor: `${color}18` }}>
-              <h4 className="font-bold mb-1 text-xs md:text-sm" style={{ color }}>About {selectedGate}</h4>
-              <p className="text-[11px] md:text-xs text-white/50 leading-relaxed">{GATE_DESCRIPTIONS[selectedGate]}</p>
+            <AnimatePresence mode="wait">
+              <motion.p key={`${gate}-${a}-${b}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="text-sm leading-7 text-white/58">
+                {explanation(gate, a, b, output)}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="glass-panel p-5">
+              <Info className="mb-4 h-5 w-5" style={{ color: meta.color }} />
+              <h3 className="font-black text-white">Definition</h3>
+              <p className="mt-2 text-sm leading-6 text-white/52">{meta.description}</p>
             </div>
-            <div className="glass-card p-3 md:p-4 text-center" style={{ borderColor: `${color}18` }}>
-              <div className="text-[10px] md:text-xs text-white/40 mb-2 font-mono uppercase tracking-widest">Boolean Expression</div>
-              <div className="font-mono text-base md:text-lg font-bold" style={{ color }}>
-                {selectedGate === "AND" && "Y = A · B"}{selectedGate === "OR" && "Y = A + B"}{selectedGate === "NOT" && "Y = Ā"}
-                {selectedGate === "NAND" && "Y = ¬(A · B)"}{selectedGate === "NOR" && "Y = ¬(A + B)"}
-                {selectedGate === "XOR" && "Y = A ⊕ B"}{selectedGate === "XNOR" && "Y = ¬(A ⊕ B)"}
-              </div>
+            <div className="glass-panel p-5">
+              <Lightbulb className="mb-4 h-5 w-5 text-amber-200" />
+              <h3 className="font-black text-white">Pattern</h3>
+              <p className="mt-2 text-sm leading-6 text-white/52">
+                Use the highlighted row to connect symbolic Boolean notation to physical signal propagation.
+              </p>
             </div>
-          </motion.div>
+          </div>
         </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        {["Input switches use spring motion", "Output glow follows active high", "Truth row locks to current state"].map((item) => (
+          <div key={item} className="glass-panel-soft p-4">
+            <Layers3 className="mb-3 h-4 w-4 text-cyan-200" />
+            <div className="text-sm font-bold text-white">{item}</div>
+          </div>
+        ))}
       </div>
     </section>
   );

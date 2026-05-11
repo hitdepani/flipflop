@@ -1,1151 +1,436 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Bot,
+  CircuitBoard,
+  Copy,
+  Cpu,
+  Grid3X3,
+  MousePointer2,
+  Play,
+  Plus,
+  Redo2,
+  RotateCcw,
+  Save,
+  Search,
+  Sparkles,
+  Trash2,
+  Undo2,
+  Workflow,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 type Bit = 0 | 1;
-type ComponentType = "AND" | "OR" | "NOT" | "NAND" | "NOR" | "XOR" | "INPUT" | "OUTPUT" | "CLOCK" | "SR-FF" | "JK-FF" | "D-FF" | "T-FF";
+type ComponentType = "INPUT" | "OUTPUT" | "CLOCK" | "AND" | "OR" | "NOT" | "NAND" | "NOR" | "XOR" | "D-FF" | "JK-FF";
 
-interface Port {
-  id: string;
-  type: "input" | "output";
-  label: string;
-  x: number;
-  y: number;
-}
-
-interface CircuitComponent {
+type Node = {
   id: string;
   type: ComponentType;
   x: number;
   y: number;
-  inputs: Record<string, Bit>;
-  output: Bit;
-  outputs?: Record<string, Bit>;
-  label?: string;
-  ports: Port[];
-  prevQ?: Bit;
-}
-
-interface Wire {
-  id: string;
-  fromCompId: string;
-  fromPort: string;
-  toCompId: string;
-  toPort: string;
-}
-
-interface ContextMenuState {
-  x: number;
-  y: number;
-  targetId: string | null;
-  targetType: "component" | "wire" | "canvas";
-}
-
-interface HistoryState {
-  components: CircuitComponent[];
-  wires: Wire[];
-}
-
-const GRID = 24;
-const snap = (v: number) => Math.round(v / GRID) * GRID;
-
-const COMPONENT_COLORS: Record<ComponentType, string> = {
-  AND: "#e8a849", OR: "#34d399", NOT: "#f472b6",
-  NAND: "#60a5fa", NOR: "#fb923c", XOR: "#2dd4bf",
-  INPUT: "#34d399", OUTPUT: "#f472b6", CLOCK: "#e8a849",
-  "SR-FF": "#e8a849", "JK-FF": "#60a5fa", "D-FF": "#34d399", "T-FF": "#f472b6",
+  value: Bit;
+  label: string;
 };
 
-const COMP_W = 100;
-const COMP_H = 60;
-const FF_H = 80;
+type Wire = {
+  id: string;
+  from: string;
+  to: string;
+};
 
-function makePorts(type: ComponentType): Port[] {
-  const isFF = ["SR-FF", "JK-FF", "D-FF", "T-FF"].includes(type);
-
-  if (type === "OUTPUT") {
-    return [{ id: "in0", type: "input", label: "IN", x: 0, y: COMP_H / 2 }];
-  }
-  if (type === "INPUT" || type === "CLOCK") {
-    return [{ id: "out0", type: "output", label: "Q", x: COMP_W, y: COMP_H / 2 }];
-  }
-  if (isFF) {
-    const h = FF_H;
-    switch (type) {
-      case "D-FF":
-        return [
-          { id: "D", type: "input", label: "D", x: 0, y: 20 },
-          { id: "CLK", type: "input", label: "CLK", x: 0, y: h - 20 },
-          { id: "Q", type: "output", label: "Q", x: COMP_W, y: 20 },
-          { id: "Qb", type: "output", label: "Q'", x: COMP_W, y: h - 20 },
-        ];
-      case "T-FF":
-        return [
-          { id: "T", type: "input", label: "T", x: 0, y: 20 },
-          { id: "CLK", type: "input", label: "CLK", x: 0, y: h - 20 },
-          { id: "Q", type: "output", label: "Q", x: COMP_W, y: 20 },
-          { id: "Qb", type: "output", label: "Q'", x: COMP_W, y: h - 20 },
-        ];
-      case "SR-FF":
-        return [
-          { id: "S", type: "input", label: "S", x: 0, y: 16 },
-          { id: "R", type: "input", label: "R", x: 0, y: 40 },
-          { id: "CLK", type: "input", label: "CLK", x: 0, y: h - 16 },
-          { id: "Q", type: "output", label: "Q", x: COMP_W, y: 20 },
-          { id: "Qb", type: "output", label: "Q'", x: COMP_W, y: h - 20 },
-        ];
-      case "JK-FF":
-        return [
-          { id: "J", type: "input", label: "J", x: 0, y: 16 },
-          { id: "K", type: "input", label: "K", x: 0, y: 40 },
-          { id: "CLK", type: "input", label: "CLK", x: 0, y: h - 16 },
-          { id: "Q", type: "output", label: "Q", x: COMP_W, y: 20 },
-          { id: "Qb", type: "output", label: "Q'", x: COMP_W, y: h - 20 },
-        ];
-    }
-  }
-
-  const single = type === "NOT";
-  const inputs: Port[] = single
-    ? [{ id: "a", type: "input", label: "A", x: 0, y: COMP_H / 2 }]
-    : [
-        { id: "a", type: "input", label: "A", x: 0, y: 18 },
-        { id: "b", type: "input", label: "B", x: 0, y: 42 },
-      ];
-  return [...inputs, { id: "out", type: "output", label: "Y", x: COMP_W, y: COMP_H / 2 }];
-}
-
-function computeOutput(type: ComponentType, inputs: Record<string, Bit>, prevQ?: Bit): { output: Bit; outputs?: Record<string, Bit> } {
-  const a = inputs["a"] ?? 0;
-  const b = inputs["b"] ?? 0;
-  switch (type) {
-    case "AND": return { output: (a & b) as Bit };
-    case "OR": return { output: (a | b) as Bit };
-    case "NOT": return { output: (1 - a) as Bit };
-    case "NAND": return { output: ((a & b) === 1 ? 0 : 1) as Bit };
-    case "NOR": return { output: ((a | b) === 0 ? 1 : 0) as Bit };
-    case "XOR": return { output: (a ^ b) as Bit };
-    case "INPUT": return { output: inputs["val"] ?? 0 };
-    case "CLOCK": return { output: inputs["val"] ?? 0 };
-    case "OUTPUT": return { output: inputs["in0"] ?? 0 };
-    case "D-FF": {
-      const D = inputs["D"] ?? 0;
-      return { output: D, outputs: { Q: D, Qb: (1 - D) as Bit } };
-    }
-    case "T-FF": {
-      const T = inputs["T"] ?? 0;
-      const pQ = prevQ ?? 0;
-      const Q = T === 1 ? ((1 - pQ) as Bit) : pQ;
-      return { output: Q, outputs: { Q, Qb: (1 - Q) as Bit } };
-    }
-    case "SR-FF": {
-      const S = inputs["S"] ?? 0, R = inputs["R"] ?? 0;
-      const pQ = prevQ ?? 0;
-      let Q: Bit;
-      if (S === 1 && R === 0) Q = 1;
-      else if (S === 0 && R === 1) Q = 0;
-      else if (S === 1 && R === 1) Q = 0;
-      else Q = pQ;
-      return { output: Q, outputs: { Q, Qb: (1 - Q) as Bit } };
-    }
-    case "JK-FF": {
-      const J = inputs["J"] ?? 0, K = inputs["K"] ?? 0;
-      const pQ = prevQ ?? 0;
-      let Q: Bit;
-      if (J === 1 && K === 1) Q = (1 - pQ) as Bit;
-      else if (J === 1) Q = 1;
-      else if (K === 1) Q = 0;
-      else Q = pQ;
-      return { output: Q, outputs: { Q, Qb: (1 - Q) as Bit } };
-    }
-  }
-}
-
-const isFFType = (t: ComponentType) => ["SR-FF", "JK-FF", "D-FF", "T-FF"].includes(t);
-
-const PALETTE: { type: ComponentType; label: string; icon: string; group: string }[] = [
-  { type: "INPUT", label: "Input", icon: "⬛", group: "IO" },
-  { type: "OUTPUT", label: "Output", icon: "💡", group: "IO" },
-  { type: "CLOCK", label: "Clock", icon: "⏱", group: "IO" },
-  { type: "AND", label: "AND", icon: "⊓", group: "Gates" },
-  { type: "OR", label: "OR", icon: "⊔", group: "Gates" },
-  { type: "NOT", label: "NOT", icon: "¬", group: "Gates" },
-  { type: "NAND", label: "NAND", icon: "⊼", group: "Gates" },
-  { type: "NOR", label: "NOR", icon: "⊽", group: "Gates" },
-  { type: "XOR", label: "XOR", icon: "⊕", group: "Gates" },
-  { type: "D-FF", label: "D FF", icon: "⎋", group: "Flip-Flops" },
-  { type: "T-FF", label: "T FF", icon: "⟲", group: "Flip-Flops" },
-  { type: "SR-FF", label: "SR FF", icon: "⇌", group: "Flip-Flops" },
-  { type: "JK-FF", label: "JK FF", icon: "⇋", group: "Flip-Flops" },
+const PALETTE: Array<{ type: ComponentType; label: string; group: string; color: string }> = [
+  { type: "INPUT", label: "Input", group: "IO", color: "#41f29a" },
+  { type: "OUTPUT", label: "Output", group: "IO", color: "#fb7185" },
+  { type: "CLOCK", label: "Clock", group: "IO", color: "#f6b84b" },
+  { type: "AND", label: "AND", group: "Gates", color: "#22d3ee" },
+  { type: "OR", label: "OR", group: "Gates", color: "#41f29a" },
+  { type: "NOT", label: "NOT", group: "Gates", color: "#fb7185" },
+  { type: "NAND", label: "NAND", group: "Gates", color: "#75a7ff" },
+  { type: "NOR", label: "NOR", group: "Gates", color: "#f6b84b" },
+  { type: "XOR", label: "XOR", group: "Gates", color: "#a78bfa" },
+  { type: "D-FF", label: "D Flip-Flop", group: "Memory", color: "#41f29a" },
+  { type: "JK-FF", label: "JK Flip-Flop", group: "Memory", color: "#75a7ff" },
 ];
 
-const SAVE_KEY = "fliplogic-circuits";
+const NODE_W = 138;
+const NODE_H = 76;
+const snap = (value: number) => Math.round(value / 24) * 24;
 
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 2800);
-    return () => clearTimeout(t);
-  }, [onDone]);
-  return <div className="toast">{message}</div>;
+function colorFor(type: ComponentType) {
+  return PALETTE.find((item) => item.type === type)?.color ?? "#22d3ee";
+}
+
+function compute(type: ComponentType, inputs: Bit[], current: Bit): Bit {
+  const a = inputs[0] ?? 0;
+  const b = inputs[1] ?? 0;
+  if (type === "INPUT" || type === "CLOCK") return current;
+  if (type === "OUTPUT") return a;
+  if (type === "AND") return (a & b) as Bit;
+  if (type === "OR") return (a | b) as Bit;
+  if (type === "NOT") return (1 - a) as Bit;
+  if (type === "NAND") return ((a & b) ? 0 : 1) as Bit;
+  if (type === "NOR") return ((a | b) ? 0 : 1) as Bit;
+  if (type === "XOR") return (a ^ b) as Bit;
+  if (type === "D-FF") return a;
+  return a && b ? ((1 - current) as Bit) : a ? 1 : b ? 0 : current;
+}
+
+function seedNodes(): Node[] {
+  return [
+    { id: "n1", type: "INPUT", x: 72, y: 120, value: 1, label: "A" },
+    { id: "n2", type: "INPUT", x: 72, y: 252, value: 0, label: "B" },
+    { id: "n3", type: "XOR", x: 342, y: 186, value: 1, label: "XOR" },
+    { id: "n4", type: "OUTPUT", x: 632, y: 186, value: 1, label: "Y" },
+  ];
+}
+
+function seedWires(): Wire[] {
+  return [
+    { id: "w1", from: "n1", to: "n3" },
+    { id: "w2", from: "n2", to: "n3" },
+    { id: "w3", from: "n3", to: "n4" },
+  ];
 }
 
 export default function CircuitBuilder() {
-  const [components, setComponents] = useState<CircuitComponent[]>([]);
-  const [wires, setWires] = useState<Wire[]>([]);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [connectingFrom, setConnectingFrom] = useState<{ compId: string; portId: string; x: number; y: number } | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [selected, setSelected] = useState<string | null>(null);
-  const [selectedWire, setSelectedWire] = useState<string | null>(null);
-  const [isDropTarget, setIsDropTarget] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(true);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [savedCircuits, setSavedCircuits] = useState<string[]>([]);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [saveName, setSaveName] = useState("");
-  const [showLoadDialog, setShowLoadDialog] = useState(false);
-
-  // Undo/Redo
-  const [history, setHistory] = useState<HistoryState[]>([]);
-  const [historyIdx, setHistoryIdx] = useState(-1);
-  const skipHistory = useRef(false);
-
+  const [nodes, setNodes] = useState<Node[]>(seedNodes);
+  const [wires, setWires] = useState<Wire[]>(seedWires);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<{ id: string; dx: number; dy: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [search, setSearch] = useState("");
+  const [running, setRunning] = useState(false);
+  const [context, setContext] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [history, setHistory] = useState<Array<{ nodes: Node[]; wires: Wire[] }>>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const idCounter = useRef(0);
-  const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const counter = useRef(10);
 
-  // Push to history
-  const pushHistory = useCallback((comps: CircuitComponent[], ws: Wire[]) => {
-    if (skipHistory.current) {
-      skipHistory.current = false;
-      return;
-    }
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIdx + 1);
-      newHistory.push({
-        components: JSON.parse(JSON.stringify(comps)),
-        wires: JSON.parse(JSON.stringify(ws)),
+  const filteredPalette = PALETTE.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()) || item.type.toLowerCase().includes(search.toLowerCase()));
+
+  const evaluate = useCallback((nextNodes: Node[], nextWires: Wire[]) => {
+    let evaluated = nextNodes.map((node) => ({ ...node }));
+    for (let pass = 0; pass < 5; pass += 1) {
+      evaluated = evaluated.map((node) => {
+        const incoming = nextWires.filter((wire) => wire.to === node.id).map((wire) => evaluated.find((candidate) => candidate.id === wire.from)?.value ?? 0);
+        return { ...node, value: compute(node.type, incoming, node.value) };
       });
-      if (newHistory.length > 50) newHistory.shift();
-      return newHistory;
-    });
-    setHistoryIdx((prev) => Math.min(prev + 1, 49));
-  }, [historyIdx]);
-
-  const undo = useCallback(() => {
-    if (historyIdx <= 0) return;
-    const newIdx = historyIdx - 1;
-    const state = history[newIdx];
-    if (!state) return;
-    skipHistory.current = true;
-    setComponents(JSON.parse(JSON.stringify(state.components)));
-    setWires(JSON.parse(JSON.stringify(state.wires)));
-    setHistoryIdx(newIdx);
-    setToast("↩ Undo");
-  }, [history, historyIdx]);
-
-  const redo = useCallback(() => {
-    if (historyIdx >= history.length - 1) return;
-    const newIdx = historyIdx + 1;
-    const state = history[newIdx];
-    if (!state) return;
-    skipHistory.current = true;
-    setComponents(JSON.parse(JSON.stringify(state.components)));
-    setWires(JSON.parse(JSON.stringify(state.wires)));
-    setHistoryIdx(newIdx);
-    setToast("↪ Redo");
-  }, [history, historyIdx]);
-
-  // Save initial state
-  useEffect(() => {
-    pushHistory([], []);
-  }, []); // eslint-disable-line
-
-  // Load saved circuit names
-  useEffect(() => {
-    try {
-      const data = localStorage.getItem(SAVE_KEY);
-      if (data) {
-        const parsed = JSON.parse(data);
-        setSavedCircuits(Object.keys(parsed));
-      }
-    } catch { /* ignore */ }
+    }
+    return evaluated;
   }, []);
 
-  const getCanvasPos = (e: React.MouseEvent | React.DragEvent) => {
+  const commit = (nextNodes: Node[], nextWires: Wire[]) => {
+    setHistory((value) => [...value.slice(-24), { nodes, wires }]);
+    setNodes(evaluate(nextNodes, nextWires));
+    setWires(nextWires);
+  };
+
+  const addNode = (type: ComponentType, x = 220 + Math.random() * 320, y = 120 + Math.random() * 220) => {
+    const id = `n${counter.current++}`;
+    const next: Node = { id, type, x: snap(x), y: snap(y), value: type === "INPUT" || type === "CLOCK" ? 1 : 0, label: type.replace("-FF", "") };
+    commit([...nodes, next], wires);
+    setSelected([id]);
+  };
+
+  const toggleNode = (id: string) => {
+    const next: Node[] = nodes.map((node) =>
+      node.id === id && (node.type === "INPUT" || node.type === "CLOCK")
+        ? { ...node, value: (node.value ? 0 : 1) as Bit }
+        : node,
+    );
+    commit(next, wires);
+  };
+
+  const deleteSelected = () => {
+    if (!selected.length) return;
+    const nextWires = wires.filter((wire) => !selected.includes(wire.from) && !selected.includes(wire.to));
+    commit(nodes.filter((node) => !selected.includes(node.id)), nextWires);
+    setSelected([]);
+  };
+
+  const duplicateSelected = () => {
+    const copies = nodes
+      .filter((node) => selected.includes(node.id))
+      .map((node) => ({ ...node, id: `n${counter.current++}`, x: node.x + 48, y: node.y + 48, label: `${node.label} copy` }));
+    if (!copies.length) return;
+    commit([...nodes, ...copies], wires);
+    setSelected(copies.map((copy) => copy.id));
+  };
+
+  const undo = () => {
+    const last = history[history.length - 1];
+    if (!last) return;
+    setNodes(last.nodes);
+    setWires(last.wires);
+    setHistory((value) => value.slice(0, -1));
+  };
+
+  const clear = () => {
+    commit([], []);
+    setSelected([]);
+  };
+
+  const canvasPoint = (event: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  };
-
-  const addComponent = useCallback((type: ComponentType, x?: number, y?: number) => {
-    const id = `comp-${idCounter.current++}`;
-    const h = isFFType(type) ? FF_H : COMP_H;
-    const rawX = x ?? 60 + Math.random() * 300;
-    const rawY = y ?? 40 + Math.random() * 250;
-    const newComp: CircuitComponent = {
-      id,
-      type,
-      x: snap(rawX),
-      y: snap(rawY),
-      inputs: (type === "INPUT" || type === "CLOCK") ? { val: 0 as Bit } : {},
-      output: 0,
-      label: type === "INPUT" ? `IN${idCounter.current}` : type === "CLOCK" ? "CLK" : undefined,
-      ports: makePorts(type),
-      prevQ: 0,
+    return {
+      x: (event.clientX - rect.left - pan.x) / zoom,
+      y: (event.clientY - rect.top - pan.y) / zoom,
     };
-    setComponents((prev) => {
-      const next = [...prev, newComp];
-      pushHistory(next, wires);
-      return next;
-    });
-    setSelected(id);
-  }, [wires, pushHistory]); // eslint-disable-line
-
-  const duplicateComponent = (compId: string) => {
-    const comp = components.find((c) => c.id === compId);
-    if (!comp) return;
-    addComponent(comp.type, comp.x + 40, comp.y + 40);
-    setToast("📋 Duplicated");
   };
 
-  // HTML5 drag from palette
-  const handleDragStart = (e: React.DragEvent, type: ComponentType) => {
-    e.dataTransfer.setData("componentType", type);
-    e.dataTransfer.effectAllowed = "copy";
-  };
-
-  const handleCanvasDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setIsDropTarget(true);
-  };
-
-  const handleCanvasDragLeave = () => setIsDropTarget(false);
-
-  const handleCanvasDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDropTarget(false);
-    const type = e.dataTransfer.getData("componentType") as ComponentType;
-    if (!type) return;
-    const pos = getCanvasPos(e);
-    const h = isFFType(type) ? FF_H : COMP_H;
-    addComponent(type, pos.x - COMP_W / 2, pos.y - h / 2);
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    const pos = getCanvasPos(e);
-    setMousePos(pos);
-    if (dragging) {
-      setComponents((prev) =>
-        prev.map((c) =>
-          c.id === dragging
-            ? { ...c, x: snap(pos.x - dragOffset.x), y: snap(pos.y - dragOffset.y) }
-            : c
-        )
-      );
-    }
-  };
-
-  const handleCompMouseDown = (e: React.MouseEvent, compId: string) => {
-    e.stopPropagation();
-    const pos = getCanvasPos(e);
-    const comp = components.find((c) => c.id === compId);
-    if (!comp) return;
-    setDragging(compId);
-    setDragOffset({ x: pos.x - comp.x, y: pos.y - comp.y });
-    setSelected(compId);
-    setSelectedWire(null);
-    setContextMenu(null);
-  };
-
-  const handleMouseUp = () => {
-    if (dragging) {
-      pushHistory(components, wires);
-    }
-    setDragging(null);
-  };
-
-  const getPortAbsPos = (comp: CircuitComponent, port: Port) => ({
-    x: comp.x + port.x,
-    y: comp.y + port.y,
-  });
-
-  const handlePortClick = (e: React.MouseEvent, compId: string, port: Port) => {
-    e.stopPropagation();
-    const comp = components.find((c) => c.id === compId);
-    if (!comp) return;
-    const abs = getPortAbsPos(comp, port);
-
-    if (!connectingFrom) {
-      if (port.type === "output") {
-        setConnectingFrom({ compId, portId: port.id, x: abs.x, y: abs.y });
-      }
-    } else {
-      if (port.type === "input" && compId !== connectingFrom.compId) {
-        // Check if port already has a wire
-        const existing = wires.find((w) => w.toCompId === compId && w.toPort === port.id);
-        const newWires = existing ? wires.filter((w) => w.id !== existing.id) : [...wires];
-        const wireId = `wire-${idCounter.current++}`;
-        newWires.push({
-          id: wireId,
-          fromCompId: connectingFrom.compId,
-          fromPort: connectingFrom.portId,
-          toCompId: compId,
-          toPort: port.id,
-        });
-        setWires(newWires);
-        pushHistory(components, newWires);
-        setConnectingFrom(null);
-      } else {
-        setConnectingFrom(null);
-      }
-    }
-  };
-
-  // Wire click
-  const handleWireClick = (e: React.MouseEvent, wireId: string) => {
-    e.stopPropagation();
-    setSelectedWire(wireId);
-    setSelected(null);
-  };
-
-  // Signal propagation
-  const propagateSignals = useCallback(() => {
-    if (components.length === 0) return;
-    setComponents((prev) => {
-      const updated = prev.map((c) => ({ ...c }));
-      for (let iter = 0; iter < 10; iter++) {
-        for (const comp of updated) {
-          const newInputs = { ...comp.inputs };
-          for (const wire of wires) {
-            if (wire.toCompId === comp.id) {
-              const from = updated.find((c) => c.id === wire.fromCompId);
-              if (from) {
-                if (isFFType(from.type) && from.outputs) {
-                  newInputs[wire.toPort] = wire.fromPort === "Qb" ? (from.outputs.Qb ?? 0) : (from.outputs.Q ?? 0);
-                } else {
-                  newInputs[wire.toPort] = from.output;
-                }
-              }
-            }
-          }
-          comp.inputs = newInputs;
-          const result = computeOutput(comp.type, newInputs, comp.prevQ);
-          comp.output = result.output;
-          if (result.outputs) comp.outputs = result.outputs;
-          if (isFFType(comp.type)) comp.prevQ = result.output;
-        }
-      }
-      return updated;
-    });
-  }, [wires, components.length]); // eslint-disable-line
-
-  useEffect(() => { propagateSignals(); }, [wires]); // eslint-disable-line
-
-  // Auto simulate + clock toggle
-  useEffect(() => {
-    if (!isSimulating) {
-      if (clockIntervalRef.current) clearInterval(clockIntervalRef.current);
-      clockIntervalRef.current = null;
-      return;
-    }
-    clockIntervalRef.current = setInterval(() => {
-      // Toggle all clock components
-      setComponents((prev) =>
-        prev.map((c) =>
-          c.type === "CLOCK"
-            ? { ...c, inputs: { ...c.inputs, val: (1 - (c.inputs["val"] ?? 0)) as Bit }, output: (1 - (c.inputs["val"] ?? 0)) as Bit }
-            : c
-        )
-      );
-      setTimeout(() => propagateSignals(), 10);
-    }, 400);
-    return () => {
-      if (clockIntervalRef.current) clearInterval(clockIntervalRef.current);
-    };
-  }, [isSimulating, propagateSignals]);
-
-  const getWireActive = (wire: Wire) => {
-    const from = components.find((c) => c.id === wire.fromCompId);
-    if (!from) return false;
-    if (isFFType(from.type) && from.outputs) {
-      return (wire.fromPort === "Qb" ? from.outputs.Qb : from.outputs.Q) === 1;
-    }
-    return from.output === 1;
-  };
-
-  const toggleInput = (compId: string) => {
-    setComponents((prev) =>
-      prev.map((c) => {
-        if (c.id !== compId || (c.type !== "INPUT" && c.type !== "CLOCK")) return c;
-        const newVal = (1 - (c.inputs["val"] ?? 0)) as Bit;
-        return { ...c, inputs: { ...c.inputs, val: newVal }, output: newVal };
+  const wirePaths = useMemo(() => {
+    return wires
+      .map((wire) => {
+        const from = nodes.find((node) => node.id === wire.from);
+        const to = nodes.find((node) => node.id === wire.to);
+        if (!from || !to) return null;
+        const x1 = from.x + NODE_W;
+        const y1 = from.y + NODE_H / 2;
+        const x2 = to.x;
+        const y2 = to.y + NODE_H / 2;
+        const mx = (x1 + x2) / 2;
+        const active = from.value === 1;
+        return { wire, d: `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`, active };
       })
-    );
-    setTimeout(() => propagateSignals(), 10);
-  };
-
-  const deleteComponent = useCallback((compId: string) => {
-    const newComps = components.filter((c) => c.id !== compId);
-    const newWires = wires.filter((w) => w.fromCompId !== compId && w.toCompId !== compId);
-    setComponents(newComps);
-    setWires(newWires);
-    pushHistory(newComps, newWires);
-    if (selected === compId) setSelected(null);
-  }, [components, wires, pushHistory, selected]);
-
-  const deleteWire = useCallback((wireId: string) => {
-    const newWires = wires.filter((w) => w.id !== wireId);
-    setWires(newWires);
-    pushHistory(components, newWires);
-    setSelectedWire(null);
-    setToast("🗑 Wire deleted");
-  }, [wires, components, pushHistory]);
-
-  const deleteSelected = useCallback(() => {
-    if (selectedWire) {
-      deleteWire(selectedWire);
-    } else if (selected) {
-      deleteComponent(selected);
-    }
-  }, [selected, selectedWire, deleteComponent, deleteWire]);
-
-  const clearAll = () => {
-    setComponents([]);
-    setWires([]);
-    setSelected(null);
-    setSelectedWire(null);
-    setConnectingFrom(null);
-    setIsSimulating(false);
-    pushHistory([], []);
-    setToast("🗑 Canvas cleared");
-  };
-
-  // Context menu
-  const handleContextMenu = (e: React.MouseEvent, targetId: string | null, targetType: "component" | "wire" | "canvas") => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, targetId, targetType });
-  };
-
-  // Close context menu on any click
-  useEffect(() => {
-    const close = () => setContextMenu(null);
-    if (contextMenu) window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [contextMenu]);
-
-  // Save circuit
-  const saveCircuit = (name: string) => {
-    try {
-      const existing = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
-      existing[name] = { components, wires, idCounter: idCounter.current };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(existing));
-      setSavedCircuits(Object.keys(existing));
-      setToast(`💾 Saved "${name}"`);
-      setShowSaveDialog(false);
-      setSaveName("");
-    } catch { setToast("❌ Save failed"); }
-  };
-
-  const loadCircuit = (name: string) => {
-    try {
-      const data = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
-      const circuit = data[name];
-      if (!circuit) return;
-      setComponents(circuit.components);
-      setWires(circuit.wires);
-      idCounter.current = circuit.idCounter || 0;
-      pushHistory(circuit.components, circuit.wires);
-      setToast(`📂 Loaded "${name}"`);
-      setShowLoadDialog(false);
-    } catch { setToast("❌ Load failed"); }
-  };
-
-  const deleteSavedCircuit = (name: string) => {
-    try {
-      const data = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
-      delete data[name];
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-      setSavedCircuits(Object.keys(data));
-      setToast(`🗑 Deleted "${name}"`);
-    } catch { /* ignore */ }
-  };
-
-  // Export as PNG
-  const exportAsPng = async () => {
-    if (!canvasRef.current) return;
-    try {
-      const html2canvas = (await import("html2canvas-pro")).default;
-      const canvas = await html2canvas(canvasRef.current, {
-        backgroundColor: "#0f1419",
-        scale: 2,
-      });
-      const link = document.createElement("a");
-      link.download = "fliplogic-circuit.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      setToast("📸 Exported as PNG");
-    } catch {
-      setToast("❌ Export failed");
-    }
-  };
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        redo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        setShowSaveDialog(true);
-      }
-      if (e.key === "Delete" || e.key === "Backspace") {
-        e.preventDefault();
-        deleteSelected();
-      }
-      if (e.key === "Escape") {
-        setConnectingFrom(null);
-        setSelected(null);
-        setSelectedWire(null);
-        setContextMenu(null);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [deleteSelected, undo, redo]);
-
-  const groups = ["IO", "Gates", "Flip-Flops"];
+      .filter(Boolean) as Array<{ wire: Wire; d: string; active: boolean }>;
+  }, [nodes, wires]);
 
   return (
-    <section id="circuit-builder" className="relative py-12 md:py-16 px-3 md:px-6">
-      <div className="max-w-[1400px] mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-6 md:mb-8 px-1"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
-            <span className="text-white">Circuit Builder</span>
-          </h2>
-          <p className="text-white/40 text-sm md:text-lg max-w-2xl">
-            Drag components onto the canvas. Click output → input ports to wire. Use <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-xs font-mono">Ctrl+Z</kbd> to undo,{" "}
-            <kbd className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-xs font-mono">Del</kbd> to delete.
+    <section className="page-shell page-transition">
+      <div className="mb-6 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+        <div>
+          <div className="eyebrow mb-4">
+            <CircuitBoard className="h-3.5 w-3.5 text-cyan-200" />
+            Circuit Builder
+          </div>
+          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">A node canvas for building logic systems.</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+            Add components, wire outputs to inputs, multi-select nodes, pan the workspace, zoom the grid, and watch active signals glow.
           </p>
-        </motion.div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="premium-button primary" onClick={() => setRunning((value) => !value)}>
+            <Play className="h-4 w-4" />
+            {running ? "Simulating" : "Run"}
+          </button>
+          <button className="premium-button" onClick={undo}><Undo2 className="h-4 w-4" />Undo</button>
+          <button className="premium-button" onClick={() => commit(nodes, wires)}><Redo2 className="h-4 w-4" />Evaluate</button>
+          <button className="icon-button" onClick={deleteSelected} aria-label="Delete selected"><Trash2 className="h-4 w-4" /></button>
+        </div>
+      </div>
 
-        <div className="flex gap-3">
-          {/* Palette sidebar */}
-          <div
-            className={`flex-shrink-0 transition-all duration-300 ${paletteOpen ? "w-44 lg:w-52" : "w-12"}`}
-          >
-            <div className="glass-card p-2 md:p-3 sticky top-24">
-              {/* Toggle palette */}
-              <button
-                onClick={() => setPaletteOpen(!paletteOpen)}
-                className="w-full text-center text-xs py-1.5 rounded-lg text-white/40 hover:text-white/70 cursor-pointer mb-1 md:hidden"
-              >
-                {paletteOpen ? "◂ Hide" : "▸"}
-              </button>
-
-              {paletteOpen ? (
-                <>
-                  {groups.map((group) => (
-                    <div key={group}>
-                      <div className="palette-group-header text-[10px] font-mono text-white/25 uppercase tracking-widest py-1 px-1 border-b border-white/[0.04]">
-                        {group}
-                      </div>
-                      {PALETTE.filter((i) => i.group === group).map((item) => (
-                        <div
-                          key={item.type}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, item.type)}
-                          onClick={() => addComponent(item.type)}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-mono cursor-grab active:cursor-grabbing hover:bg-white/[0.04] transition-colors"
-                          style={{ color: COMPONENT_COLORS[item.type] }}
-                        >
-                          <span className="text-sm w-5 text-center">{item.icon}</span>
-                          <span className="palette-label truncate">{item.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-
-                  {/* Actions */}
-                  <div className="palette-actions pt-2 mt-1 border-t border-white/[0.05] space-y-1.5">
-                    <motion.button
-                      onClick={() => {
-                        setIsSimulating(!isSimulating);
-                        if (!isSimulating) propagateSignals();
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      className={`w-full text-[11px] py-2 rounded-lg font-bold cursor-pointer ${
-                        isSimulating ? "text-[#34d399] border border-[rgba(52,211,153,0.5)] sim-running" : "text-[#60a5fa] border border-[rgba(96,165,250,0.3)]"
-                      }`}
-                      style={{ background: isSimulating ? "rgba(52,211,153,0.1)" : "rgba(96,165,250,0.08)" }}
-                    >
-                      {isSimulating ? "⏸ Pause" : "▶ Run"}
-                    </motion.button>
-
-                    <button onClick={propagateSignals} className="w-full text-[11px] py-1.5 rounded-lg text-[#e8a849] border border-[rgba(232,168,73,0.2)] cursor-pointer" style={{ background: "rgba(232,168,73,0.05)" }}>
-                      ⏭ Step
+      <div className="grid min-h-[720px] gap-4 xl:grid-cols-[280px_1fr_300px]">
+        <aside className="premium-card p-4">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
+            <Search className="h-4 w-4 text-white/36" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search components" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/28" />
+          </div>
+          <div className="space-y-4">
+            {["IO", "Gates", "Memory"].map((group) => (
+              <div key={group}>
+                <div className="mb-2 font-mono text-xs font-black uppercase tracking-widest text-white/34">{group}</div>
+                <div className="grid gap-2">
+                  {filteredPalette.filter((item) => item.group === group).map((item) => (
+                    <button key={item.type} onClick={() => addNode(item.type)} className="group flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/28 hover:bg-cyan-300/8">
+                      <span className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/20" style={{ color: item.color }}>
+                          <Cpu className="h-4 w-4" />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-black text-white">{item.label}</span>
+                          <span className="font-mono text-[10px] text-white/32">{item.type}</span>
+                        </span>
+                      </span>
+                      <Plus className="h-4 w-4 text-white/28 group-hover:text-white" />
                     </button>
-
-                    <div className="flex gap-1">
-                      <button onClick={undo} className="flex-1 text-[11px] py-1.5 rounded-lg text-white/30 border border-white/[0.08] cursor-pointer hover:text-white/50" title="Undo (Ctrl+Z)">↩</button>
-                      <button onClick={redo} className="flex-1 text-[11px] py-1.5 rounded-lg text-white/30 border border-white/[0.08] cursor-pointer hover:text-white/50" title="Redo (Ctrl+Y)">↪</button>
-                    </div>
-
-                    <div className="flex gap-1">
-                      <button onClick={() => setShowSaveDialog(true)} className="flex-1 text-[11px] py-1.5 rounded-lg text-white/30 border border-white/[0.08] cursor-pointer hover:text-white/50" title="Save">💾</button>
-                      <button onClick={() => { setShowLoadDialog(true); }} className="flex-1 text-[11px] py-1.5 rounded-lg text-white/30 border border-white/[0.08] cursor-pointer hover:text-white/50" title="Load">📂</button>
-                      <button onClick={exportAsPng} className="flex-1 text-[11px] py-1.5 rounded-lg text-white/30 border border-white/[0.08] cursor-pointer hover:text-white/50" title="Export PNG">📸</button>
-                    </div>
-
-                    {(selected || selectedWire) && (
-                      <button onClick={deleteSelected} className="w-full text-[11px] py-1.5 rounded-lg text-[#f472b6] border border-[rgba(244,114,182,0.2)] cursor-pointer" style={{ background: "rgba(244,114,182,0.05)" }}>
-                        🗑 Delete {selectedWire ? "Wire" : "Selected"}
-                      </button>
-                    )}
-
-                    <button onClick={clearAll} className="w-full text-[11px] py-1.5 rounded-lg text-white/20 border border-white/[0.06] cursor-pointer hover:text-white/40">↺ Clear</button>
-                  </div>
-                </>
-              ) : (
-                /* Collapsed palette — icons only */
-                <div className="space-y-1 pt-1">
-                  {PALETTE.map((item) => (
-                    <div
-                      key={item.type}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.type)}
-                      onClick={() => addComponent(item.type)}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg cursor-grab active:cursor-grabbing hover:bg-white/[0.06]"
-                      title={item.label}
-                      style={{ color: COMPONENT_COLORS[item.type] }}
-                    >
-                      {item.icon}
-                    </div>
                   ))}
                 </div>
-              )}
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <div className="premium-card overflow-hidden p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <button className="icon-button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.1))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></button>
+              <span className="mono-chip">{Math.round(zoom * 100)}%</span>
+              <button className="icon-button" onClick={() => setZoom((value) => Math.min(1.65, value + 0.1))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></button>
+              <button className="icon-button" onClick={() => setPan({ x: 0, y: 0 })} aria-label="Reset pan"><RotateCcw className="h-4 w-4" /></button>
+            </div>
+            <div className="flex gap-2">
+              <span className="mono-chip"><Grid3X3 className="h-3.5 w-3.5" /> snap 24</span>
+              <span className="mono-chip"><Workflow className="h-3.5 w-3.5" /> {wires.length} wires</span>
+              <span className="mono-chip"><MousePointer2 className="h-3.5 w-3.5" /> {selected.length} selected</span>
             </div>
           </div>
-
-          {/* Canvas */}
-          <div className="flex-1 min-w-0">
-            <div
-              ref={canvasRef}
-              className={`relative w-full rounded-2xl overflow-hidden transition-all duration-200 ${isDropTarget ? "canvas-drop-active" : ""}`}
-              style={{
-                height: "min(70vh, 600px)",
-                minHeight: 350,
-                background: "radial-gradient(ellipse at 50% 50%, rgba(96,165,250,0.015) 0%, transparent 70%), rgba(255,255,255,0.02)",
-                border: `1px solid ${connectingFrom ? "rgba(232,168,73,0.4)" : isDropTarget ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)"}`,
-                backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-                backgroundSize: `${GRID}px ${GRID}px`,
-                cursor: connectingFrom ? "crosshair" : "default",
-              }}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleMouseUp}
-              onDragOver={handleCanvasDragOver}
-              onDragLeave={handleCanvasDragLeave}
-              onDrop={handleCanvasDrop}
-              onContextMenu={(e) => handleContextMenu(e, null, "canvas")}
-              onClick={() => {
-                setConnectingFrom(null);
-                setSelected(null);
-                setSelectedWire(null);
-              }}
-            >
-              {/* SVG wires */}
-              <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 1, pointerEvents: "none" }}>
-                {wires.map((wire) => {
-                  const fromComp = components.find((c) => c.id === wire.fromCompId);
-                  const toComp = components.find((c) => c.id === wire.toCompId);
-                  if (!fromComp || !toComp) return null;
-                  const fromPort = fromComp.ports.find((p) => p.id === wire.fromPort);
-                  const toPort = toComp.ports.find((p) => p.id === wire.toPort);
-                  if (!fromPort || !toPort) return null;
-                  const p1 = getPortAbsPos(fromComp, fromPort);
-                  const p2 = getPortAbsPos(toComp, toPort);
-                  const active = getWireActive(wire);
-                  const isSel = selectedWire === wire.id;
-                  const mx = (p1.x + p2.x) / 2;
-                  const pathD = `M ${p1.x} ${p1.y} C ${mx} ${p1.y} ${mx} ${p2.y} ${p2.x} ${p2.y}`;
-                  return (
-                    <g key={wire.id}>
-                      {/* Invisible thick hit area */}
-                      <path
-                        d={pathD}
-                        fill="none"
-                        stroke="transparent"
-                        strokeWidth={14}
-                        style={{ pointerEvents: "stroke", cursor: "pointer" }}
-                        onClick={(e) => handleWireClick(e as unknown as React.MouseEvent, wire.id)}
-                        onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e as unknown as React.MouseEvent, wire.id, "wire"); }}
-                      />
-                      <path
-                        d={pathD}
-                        fill="none"
-                        stroke={isSel ? "#e8a849" : active ? "#34d399" : "rgba(255,255,255,0.15)"}
-                        strokeWidth={isSel ? 3 : active ? 2.5 : 1.5}
-                        style={{
-                          filter: isSel
-                            ? "drop-shadow(0 0 6px #e8a849)"
-                            : active
-                            ? "drop-shadow(0 0 4px #34d399)"
-                            : "none",
-                          pointerEvents: "none",
-                        }}
-                      />
-                      {active && isSimulating && (
-                        <circle r="3" fill="#34d399" style={{ filter: "drop-shadow(0 0 4px #34d399)" }}>
-                          <animateMotion dur="1.2s" repeatCount="indefinite" path={pathD} />
-                        </circle>
-                      )}
-                    </g>
-                  );
-                })}
-
-                {/* Wire preview */}
-                {connectingFrom && (
-                  <line
-                    x1={connectingFrom.x} y1={connectingFrom.y}
-                    x2={mousePos.x} y2={mousePos.y}
-                    stroke="rgba(232,168,73,0.5)"
-                    strokeWidth="1.5"
-                    strokeDasharray="6,4"
-                    style={{ filter: "drop-shadow(0 0 4px rgba(232,168,73,0.6))", pointerEvents: "none" }}
-                  />
-                )}
+          <div
+            ref={canvasRef}
+            className="canvas-grid relative h-[620px] overflow-hidden rounded-2xl border border-white/10"
+            onMouseMove={(event) => {
+              if (!dragging) return;
+              const point = canvasPoint(event);
+              setNodes((value) => value.map((node) => (node.id === dragging.id ? { ...node, x: snap(point.x - dragging.dx), y: snap(point.y - dragging.dy) } : node)));
+            }}
+            onMouseUp={() => {
+              if (dragging) commit(nodes, wires);
+              setDragging(null);
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setContext(null);
+            }}
+          >
+            <div className="absolute left-0 top-0 h-[1200px] w-[1600px] origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+              <svg className="absolute inset-0 h-[1200px] w-[1600px]">
+                {wirePaths.map(({ wire, d, active }) => (
+                  <g key={wire.id}>
+                    <path d={d} fill="none" stroke={active ? "#41f29a" : "rgba(226,232,240,0.18)"} strokeWidth={active ? 4 : 2.5} strokeLinecap="round" className={active && running ? "wire-flow" : ""} filter={active ? "drop-shadow(0 0 7px rgba(65,242,154,0.75))" : undefined} />
+                  </g>
+                ))}
               </svg>
 
-              {/* Components */}
-              {components.map((comp) => {
-                const h = isFFType(comp.type) ? FF_H : COMP_H;
-                const isClock = comp.type === "CLOCK";
+              {nodes.map((node) => {
+                const color = colorFor(node.type);
+                const active = node.value === 1;
+                const isSelected = selected.includes(node.id);
                 return (
                   <motion.div
-                    key={comp.id}
-                    style={{
-                      position: "absolute",
-                      left: comp.x,
-                      top: comp.y,
-                      width: COMP_W,
-                      height: h,
-                      zIndex: dragging === comp.id ? 10 : selected === comp.id ? 5 : 2,
+                    key={node.id}
+                    layout
+                    className="absolute"
+                    style={{ left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                      const point = canvasPoint(event);
+                      setDragging({ id: node.id, dx: point.x - node.x, dy: point.y - node.y });
+                      setSelected(event.shiftKey ? Array.from(new Set([...selected, node.id])) : [node.id]);
                     }}
-                    animate={{ scale: dragging === comp.id ? 1.05 : 1 }}
-                    onMouseDown={(e) => handleCompMouseDown(e, comp.id)}
-                    onContextMenu={(e) => handleContextMenu(e, comp.id, "component")}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setContext({ x: event.clientX, y: event.clientY, id: node.id });
+                      setSelected([node.id]);
+                    }}
                   >
-                    <div
-                      className={`chip-component w-full h-full flex items-center justify-center relative ${dragging === comp.id ? "dragging" : ""}`}
-                      style={{
-                        borderColor: selected === comp.id ? `${COMPONENT_COLORS[comp.type]}80` : `${COMPONENT_COLORS[comp.type]}25`,
-                        boxShadow: selected === comp.id ? `0 0 20px ${COMPONENT_COLORS[comp.type]}20` : "none",
-                      }}
-                    >
-                      {/* Delete × on hover */}
-                      <div
-                        className="delete-overlay"
-                        onClick={(e) => { e.stopPropagation(); deleteComponent(comp.id); }}
-                        title="Delete"
-                      >
-                        ×
+                    <div className={`relative h-full rounded-2xl border bg-[#07111e]/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.32)] ${isSelected ? "border-cyan-300/50" : "border-white/12"}`} style={{ boxShadow: active ? `0 0 34px ${color}22` : undefined }}>
+                      <button
+                        className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-white/20 bg-[#050812]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (connecting && connecting !== node.id) {
+                            const next = [...wires.filter((wire) => !(wire.from === connecting && wire.to === node.id)), { id: `w${counter.current++}`, from: connecting, to: node.id }];
+                            setConnecting(null);
+                            commit(nodes, next);
+                          }
+                        }}
+                        aria-label="Input port"
+                      />
+                      <button
+                        className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border bg-[#050812]"
+                        style={{ borderColor: active ? color : "rgba(255,255,255,0.2)", background: active ? color : "#050812", boxShadow: active ? `0 0 16px ${color}` : undefined }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConnecting(connecting === node.id ? null : node.id);
+                        }}
+                        aria-label="Output port"
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="font-mono text-xs font-black" style={{ color }}>{node.type}</div>
+                        <div className={active ? "signal-high font-mono text-lg font-black" : "signal-low font-mono text-lg font-black"}>{node.value}</div>
                       </div>
-
-                      <div className="text-center">
-                        <div className="font-mono font-bold text-[11px]" style={{ color: COMPONENT_COLORS[comp.type] }}>
-                          {comp.type === "INPUT" ? comp.label ?? "IN" : comp.type === "CLOCK" ? "CLK" : comp.type}
-                        </div>
-                        {(comp.type === "INPUT" || isClock) && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleInput(comp.id); }}
-                            className="mt-0.5 px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-all"
-                            style={{
-                              background: comp.output === 1 ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.08)",
-                              color: comp.output === 1 ? "#34d399" : "rgba(255,255,255,0.4)",
-                              border: comp.output === 1 ? "1px solid rgba(52,211,153,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                            }}
-                          >
-                            {isClock && isSimulating ? "⏱" : comp.output}
-                          </button>
-                        )}
-                        {comp.type === "OUTPUT" && (
-                          <div
-                            className="mt-0.5 w-4 h-4 rounded-full mx-auto transition-all"
-                            style={{
-                              background: comp.output === 1 ? "#34d399" : "rgba(255,255,255,0.1)",
-                              boxShadow: comp.output === 1 ? "0 0 12px #34d399" : "none",
-                            }}
-                          />
-                        )}
-                        {!["INPUT", "OUTPUT", "CLOCK"].includes(comp.type) && !isFFType(comp.type) && (
-                          <div className="text-[10px] mt-0.5" style={{ color: comp.output === 1 ? "#34d399" : "rgba(255,255,255,0.25)" }}>
-                            Y={comp.output}
-                          </div>
-                        )}
-                        {isFFType(comp.type) && (
-                          <div className="text-[10px] mt-0.5 font-mono" style={{ color: (comp.outputs?.Q ?? comp.output) === 1 ? "#34d399" : "rgba(255,255,255,0.25)" }}>
-                            Q={comp.outputs?.Q ?? comp.output}
-                          </div>
-                        )}
-                      </div>
+                      <div className="mt-2 truncate text-sm font-black text-white">{node.label}</div>
+                      {(node.type === "INPUT" || node.type === "CLOCK") && (
+                        <button onClick={(event) => { event.stopPropagation(); toggleNode(node.id); }} className="mt-2 rounded-lg border border-white/10 bg-white/[0.045] px-2 py-1 font-mono text-[10px] font-black text-white/70">
+                          toggle
+                        </button>
+                      )}
                     </div>
-
-                    {/* Ports */}
-                    {comp.ports.map((port) => {
-                      let portActive = false;
-                      if (port.type === "output") {
-                        if (isFFType(comp.type) && comp.outputs) {
-                          portActive = (port.id === "Q" ? comp.outputs.Q : comp.outputs.Qb) === 1;
-                        } else {
-                          portActive = comp.output === 1;
-                        }
-                      }
-                      const isConnecting = connectingFrom?.compId === comp.id && connectingFrom?.portId === port.id;
-                      return (
-                        <div
-                          key={port.id}
-                          onClick={(e) => handlePortClick(e, comp.id, port)}
-                          className="port absolute"
-                          style={{
-                            left: port.x - 5,
-                            top: port.y - 5,
-                            background: isConnecting ? "#e8a849" : portActive ? "#34d399" : undefined,
-                            borderColor: isConnecting ? "#e8a849" : portActive ? "#34d399" : undefined,
-                            boxShadow: portActive ? "0 0 8px rgba(52,211,153,0.5)" : isConnecting ? "0 0 8px rgba(232,168,73,0.5)" : undefined,
-                          }}
-                          title={port.label}
-                        >
-                          <span
-                            className="absolute text-[7px] font-mono font-bold pointer-events-none whitespace-nowrap"
-                            style={{
-                              color: "rgba(255,255,255,0.35)",
-                              left: port.type === "input" ? 13 : "auto",
-                              right: port.type === "output" ? 13 : "auto",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                            }}
-                          >
-                            {port.label}
-                          </span>
-                        </div>
-                      );
-                    })}
                   </motion.div>
                 );
               })}
 
-              {/* Empty state */}
-              {components.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center text-white/15">
-                    <div className="text-5xl mb-3">⬡</div>
-                    <div className="font-mono text-sm">Drag or click to add components</div>
-                  </div>
+              {nodes.length === 0 && (
+                <div className="absolute left-[420px] top-[240px] text-center text-white/20">
+                  <CircuitBoard className="mx-auto mb-4 h-12 w-12" />
+                  <div className="font-mono text-sm">Add components from the library</div>
                 </div>
               )}
-
-              {/* Drop indicator */}
-              <AnimatePresence>
-                {isDropTarget && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-3 rounded-xl border-2 border-dashed border-[rgba(52,211,153,0.25)] pointer-events-none flex items-center justify-center"
-                  >
-                    <span className="text-sm font-mono text-[#34d399]/30">Drop here</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
 
-            {/* Status bar */}
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-white/25 px-1">
-              <span>{components.length} components</span>
-              <span>·</span>
-              <span>{wires.length} wires</span>
-              {isSimulating && <span className="text-[#34d399] animate-pulse">· Simulating</span>}
-              {connectingFrom && <span className="text-[#e8a849] animate-pulse">· Click input port to wire</span>}
-              {selectedWire && <span className="text-[#e8a849]">· Wire selected (Del to remove)</span>}
-              {selected && !connectingFrom && <span>· {components.find((c) => c.id === selected)?.type} selected</span>}
-              <span className="ml-auto hidden md:inline text-white/15">Ctrl+Z undo · Ctrl+Y redo · Ctrl+S save</span>
+            <div className="absolute bottom-4 right-4 h-32 w-48 rounded-xl border border-white/10 bg-[#050812]/84 p-2 backdrop-blur-xl">
+              <div className="mb-1 font-mono text-[10px] font-black uppercase tracking-widest text-white/34">minimap</div>
+              <div className="relative h-24 overflow-hidden rounded-lg bg-white/[0.035]">
+                {nodes.map((node) => (
+                  <span key={node.id} className="absolute h-2 w-4 rounded-sm" style={{ left: node.x / 9, top: node.y / 9, background: colorFor(node.type), opacity: 0.8 }} />
+                ))}
+              </div>
             </div>
           </div>
         </div>
+
+        <aside className="grid gap-4">
+          <div className="premium-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Bot className="h-4 w-4 text-amber-200" />
+              <h3 className="font-black text-white">AI Suggestions</h3>
+            </div>
+            <div className="space-y-3 text-sm leading-6 text-white/54">
+              <p>Add a CLOCK and D-FF to turn this combinational XOR example into a sampled parity register.</p>
+              <p>Use NAND nodes to recreate every gate from a universal primitive.</p>
+            </div>
+            <button className="premium-button mt-4 w-full" onClick={() => addNode("D-FF", 460, 360)}>
+              <Sparkles className="h-4 w-4" />
+              Add D-FF
+            </button>
+          </div>
+
+          <div className="premium-card p-4">
+            <h3 className="mb-3 font-black text-white">Inspector</h3>
+            {selected.length ? (
+              <div className="space-y-2">
+                {nodes.filter((node) => selected.includes(node.id)).map((node) => (
+                  <div key={node.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                    <div className="font-mono text-xs font-black" style={{ color: colorFor(node.type) }}>{node.type}</div>
+                    <div className="mt-1 text-sm text-white/58">x {node.x} / y {node.y} / value {node.value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm leading-6 text-white/45">Select a node to inspect position, state, and connections.</p>
+            )}
+          </div>
+
+          <div className="premium-card p-4">
+            <h3 className="mb-3 font-black text-white">Shortcuts</h3>
+            <div className="grid gap-2">
+              {["Shift-click multi-select", "Click output port then input port to wire", "Right-click node for context menu", "Use zoom controls for dense circuits"].map((item) => (
+                <div key={item} className="mono-chip justify-start">{item}</div>
+              ))}
+            </div>
+          </div>
+        </aside>
       </div>
 
-      {/* Context menu */}
       <AnimatePresence>
-        {contextMenu && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="context-menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-          >
-            {contextMenu.targetType === "component" && contextMenu.targetId && (
-              <>
-                <div
-                  className="context-menu-item"
-                  onClick={() => { duplicateComponent(contextMenu.targetId!); setContextMenu(null); }}
-                >
-                  📋 Duplicate
-                </div>
-                <div
-                  className="context-menu-item danger"
-                  onClick={() => { deleteComponent(contextMenu.targetId!); setContextMenu(null); }}
-                >
-                  🗑 Delete
-                </div>
-              </>
-            )}
-            {contextMenu.targetType === "wire" && contextMenu.targetId && (
-              <div
-                className="context-menu-item danger"
-                onClick={() => { deleteWire(contextMenu.targetId!); setContextMenu(null); }}
-              >
-                🗑 Delete Wire
-              </div>
-            )}
-            {contextMenu.targetType === "canvas" && (
-              <>
-                <div className="context-menu-item" onClick={() => { clearAll(); setContextMenu(null); }}>↺ Clear All</div>
-                <div className="context-menu-divider" />
-                <div className="context-menu-item" onClick={() => { setShowSaveDialog(true); setContextMenu(null); }}>💾 Save Circuit</div>
-                <div className="context-menu-item" onClick={() => { setShowLoadDialog(true); setContextMenu(null); }}>📂 Load Circuit</div>
-                <div className="context-menu-item" onClick={() => { exportAsPng(); setContextMenu(null); }}>📸 Export PNG</div>
-              </>
-            )}
+        {context && (
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="fixed z-[100] w-52 rounded-xl border border-white/10 bg-[#070b13]/96 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl" style={{ left: context.x, top: context.y }}>
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white/68 hover:bg-white/8 hover:text-white" onClick={() => { duplicateSelected(); setContext(null); }}>
+              <Copy className="h-4 w-4" /> Duplicate
+            </button>
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white/68 hover:bg-white/8 hover:text-white" onClick={() => setContext(null)}>
+              <Save className="h-4 w-4" /> Save selection
+            </button>
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#fb7185] hover:bg-[#fb7185]/10" onClick={() => { deleteSelected(); setContext(null); }}>
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Save dialog */}
-      <AnimatePresence>
-        {showSaveDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
-            onClick={() => setShowSaveDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="glass-card p-6 w-full max-w-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-bold text-lg text-white mb-4">Save Circuit</h3>
-              <input
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Circuit name..."
-                autoFocus
-                className="w-full px-4 py-2.5 rounded-xl text-sm font-mono mb-3"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#e8a849", outline: "none" }}
-                onKeyDown={(e) => { if (e.key === "Enter" && saveName.trim()) saveCircuit(saveName.trim()); }}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => saveName.trim() && saveCircuit(saveName.trim())}
-                  className="flex-1 py-2 rounded-xl text-sm font-bold cursor-pointer"
-                  style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.3)", color: "#34d399" }}
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowSaveDialog(false)}
-                  className="flex-1 py-2 rounded-xl text-sm cursor-pointer text-white/40 border border-white/10"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Load dialog */}
-      <AnimatePresence>
-        {showLoadDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
-            onClick={() => setShowLoadDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="glass-card p-6 w-full max-w-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-bold text-lg text-white mb-4">Load Circuit</h3>
-              {savedCircuits.length === 0 ? (
-                <p className="text-sm text-white/30 mb-4">No saved circuits yet.</p>
-              ) : (
-                <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
-                  {savedCircuits.map((name) => (
-                    <div key={name} className="flex items-center gap-2">
-                      <button
-                        onClick={() => loadCircuit(name)}
-                        className="flex-1 text-left px-3 py-2 rounded-lg text-sm font-mono cursor-pointer hover:bg-white/[0.04]"
-                        style={{ color: "#e8a849", border: "1px solid rgba(232,168,73,0.15)" }}
-                      >
-                        {name}
-                      </button>
-                      <button
-                        onClick={() => deleteSavedCircuit(name)}
-                        className="px-2 py-2 rounded-lg text-xs text-white/30 hover:text-[#f472b6] cursor-pointer"
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => setShowLoadDialog(false)}
-                className="w-full py-2 rounded-xl text-sm cursor-pointer text-white/40 border border-white/10"
-              >
-                Cancel
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       </AnimatePresence>
     </section>
   );

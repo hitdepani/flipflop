@@ -1,88 +1,252 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Cpu, GitMerge, LayoutGrid, Activity } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
+  BookOpen,
+  Boxes,
+  BrainCircuit,
+  CircuitBoard,
+  Command,
+  Cpu,
+  FlaskConical,
+  Gamepad2,
+  GitBranch,
+  Home,
+  Menu,
+  MoonStar,
+  PanelRightOpen,
+  Search,
+  Settings,
+  Sparkles,
+  X,
+  Zap,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+
+const navItems = [
+  { href: "/", label: "Home", icon: Home, key: "H" },
+  { href: "/logic-gates", label: "Gates", icon: Cpu, key: "G" },
+  { href: "/flip-flops", label: "Flip-Flops", icon: GitBranch, key: "F" },
+  { href: "/circuit-builder", label: "Builder", icon: CircuitBoard, key: "B" },
+  { href: "/timing-diagrams", label: "Timing", icon: Activity, key: "T" },
+  { href: "/components", label: "Library", icon: Boxes, key: "L" },
+  { href: "/learning", label: "Learn", icon: BookOpen, key: "E" },
+  { href: "/challenges", label: "Practice", icon: Gamepad2, key: "P" },
+  { href: "/settings", label: "Settings", icon: Settings, key: "," },
+];
+
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
 
 export default function Nav() {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [palette, setPalette] = useState(false);
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
+  const active = useMemo(() => navItems.find((item) => isActive(pathname, item.href)) ?? navItems[0], [pathname]);
 
-  const links = [
-    { href: "/", label: "Home", icon: <LayoutGrid className="w-5 h-5" /> },
-    { href: "/logic-gates", label: "Logic Gates", icon: <Cpu className="w-5 h-5" /> },
-    { href: "/flip-flops", label: "Flip-Flops", icon: <GitMerge className="w-5 h-5" /> },
-    { href: "/circuit-builder", label: "Circuit Builder", icon: <Activity className="w-5 h-5" /> },
-    { href: "/timing-diagrams", label: "Timing Diagrams", icon: <Activity className="w-5 h-5" /> },
-  ];
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const meta = event.metaKey || event.ctrlKey;
+      if (meta && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPalette((value) => !value);
+      }
+      if (event.key === "Escape") {
+        setOpen(false);
+        setPalette(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0b0f14]/80 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-              <Cpu className="w-5 h-5 text-[#0b0f14]" />
+      <motion.header
+        initial={{ y: -28, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.55, ease: [0.21, 1, 0.23, 1] }}
+        className="fixed left-0 right-0 top-0 z-50 px-3 pt-3 md:px-5"
+      >
+        <div className="mx-auto flex h-16 max-w-[1480px] items-center justify-between rounded-2xl border border-white/10 bg-[#050812]/74 px-3 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:px-4">
+          <Link href="/" className="group flex items-center gap-3" onClick={() => setOpen(false)}>
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200 shadow-[0_0_34px_rgba(34,211,238,0.16)]">
+              <BrainCircuit className="h-5 w-5" />
+              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#41f29a] shadow-[0_0_14px_rgba(65,242,154,0.8)]" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">FlipLogic</span>
+            <div>
+              <div className="text-[15px] font-black tracking-tight text-white">FlipLogic</div>
+              <div className="hidden text-[10px] font-bold uppercase tracking-[0.22em] text-white/34 sm:block">signal studio</div>
+            </div>
           </Link>
-          
-          <button 
-            onClick={toggleSidebar}
-            className="p-2 text-[#cbd5e1] hover:text-white transition-colors rounded-md hover:bg-white/5"
-            aria-label="Toggle Menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+
+          <nav className="hidden items-center gap-1 rounded-2xl border border-white/8 bg-white/[0.035] p-1 lg:flex">
+            {navItems.slice(0, 8).map((item) => {
+              const Icon = item.icon;
+              const activeItem = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition ${
+                    activeItem ? "text-white" : "text-white/48 hover:text-white"
+                  }`}
+                >
+                  {activeItem && (
+                    <motion.span
+                      layoutId="nav-active-pill"
+                      className="absolute inset-0 rounded-xl border border-cyan-300/20 bg-cyan-300/10 shadow-[0_0_26px_rgba(34,211,238,0.14)]"
+                    />
+                  )}
+                  <Icon className="relative h-4 w-4" />
+                  <span className="relative">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <button className="icon-button hidden md:inline-flex" onClick={() => setPalette(true)} aria-label="Open command palette">
+              <Search className="h-4 w-4" />
+            </button>
+            <Link href="/settings" className="icon-button hidden md:inline-flex" aria-label="Settings">
+              <MoonStar className="h-4 w-4" />
+            </Link>
+            <button className="icon-button lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation">
+              <Menu className="h-5 w-5" />
+            </button>
+            <button className="premium-button hidden xl:inline-flex" onClick={() => setPalette(true)}>
+              <Command className="h-4 w-4" />
+              Command
+            </button>
+          </div>
         </div>
+      </motion.header>
+
+      <aside className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-2 rounded-2xl border border-white/10 bg-[#050812]/68 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl xl:flex">
+        {navItems.slice(1, 8).map((item) => {
+          const Icon = item.icon;
+          const activeItem = isActive(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`group relative flex h-11 w-11 items-center justify-center rounded-xl transition ${
+                activeItem ? "bg-cyan-300/12 text-cyan-100" : "text-white/42 hover:bg-white/8 hover:text-white"
+              }`}
+              title={item.label}
+            >
+              {activeItem && <span className="absolute inset-0 rounded-xl border border-cyan-300/25 shadow-[0_0_22px_rgba(34,211,238,0.16)]" />}
+              <Icon className="h-4.5 w-4.5" />
+            </Link>
+          );
+        })}
+      </aside>
+
+      <nav className="fixed bottom-3 left-3 right-3 z-50 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-[#050812]/86 p-1 shadow-[0_18px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl md:hidden">
+        {[navItems[0], navItems[1], navItems[3], navItems[4], navItems[7]].map((item) => {
+          const Icon = item.icon;
+          const activeItem = isActive(pathname, item.href);
+          return (
+            <Link key={item.href} href={item.href} className={`flex h-12 flex-col items-center justify-center rounded-xl text-[10px] font-bold ${activeItem ? "bg-cyan-300/12 text-white" : "text-white/45"}`}>
+              <Icon className="mb-0.5 h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
-      {/* Sidebar Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity"
-          onClick={toggleSidebar}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 360, damping: 34 }}
+              className="fixed bottom-0 right-0 top-0 z-[80] w-[min(380px,92vw)] border-l border-white/10 bg-[#050812]/94 p-5 shadow-[-24px_0_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl lg:hidden"
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-black text-white">Navigation</div>
+                  <div className="text-xs text-white/42">Active: {active.label}</div>
+                </div>
+                <button className="icon-button" onClick={() => setOpen(false)} aria-label="Close navigation">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const activeItem = isActive(pathname, item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+                        activeItem ? "border-cyan-300/24 bg-cyan-300/10 text-white" : "border-white/8 bg-white/[0.03] text-white/62"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3 font-semibold">
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </span>
+                      <span className="font-mono text-xs text-white/34">{item.key}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar Content */}
-      <div 
-        className={`fixed top-0 right-0 h-full w-[300px] bg-[#131821] border-l border-white/5 z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <span className="text-sm font-semibold text-[#cbd5e1] uppercase tracking-wider">Navigation</span>
-          <button 
-            onClick={toggleSidebar}
-            className="p-1 text-[#cbd5e1] hover:text-white transition-colors rounded-md hover:bg-white/5"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div className="p-4 flex flex-col gap-2">
-          {links.map((link) => {
-            const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={toggleSidebar}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive 
-                    ? "bg-white/10 text-white font-medium" 
-                    : "text-[#cbd5e1] hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      <AnimatePresence>
+        {palette && (
+          <motion.div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/58 px-4 pt-24 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPalette(false)}>
+            <motion.div
+              initial={{ y: 18, scale: 0.98 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 12, scale: 0.98 }}
+              className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/12 bg-[#070b13]/96 shadow-[0_34px_110px_rgba(0,0,0,0.6)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 border-b border-white/8 px-4 py-4">
+                <Command className="h-5 w-5 text-cyan-200" />
+                <div className="flex-1 text-sm font-semibold text-white/72">Jump to a FlipLogic workspace</div>
+                <span className="mono-chip">Ctrl K</span>
+              </div>
+              <div className="grid gap-2 p-3 sm:grid-cols-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setPalette(false)} className="group flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.025] p-3 transition hover:border-cyan-300/26 hover:bg-cyan-300/8">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.045] text-white/72 group-hover:text-cyan-100">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-white">{item.label}</span>
+                        <span className="text-xs text-white/38">Shortcut {item.key}</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 border-t border-white/8 px-4 py-3 text-xs text-white/36">
+                <Sparkles className="h-4 w-4 text-amber-200/70" />
+                <span>AI suggestions, component search, and simulator shortcuts share one command surface.</span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
