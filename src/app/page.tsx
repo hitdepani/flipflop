@@ -95,22 +95,22 @@ function WavePreview() {
 export default function Home() {
   return (
     <div className="page-transition relative overflow-hidden">
-      <section className="relative min-h-[100svh] overflow-hidden px-4 pb-12 pt-28 md:pt-32">
+      <section className="relative min-h-[720px] overflow-hidden px-4 pb-8 pt-24 md:min-h-[680px] md:pt-24">
         <AmbientScene />
-        <div className="section-shell grid min-h-[calc(100svh-140px)] items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
+        <div className="section-shell grid min-h-[560px] items-center gap-7 lg:grid-cols-[0.96fr_1.04fr]">
           <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
             <div className="eyebrow mb-6">
               <Zap className="h-3.5 w-3.5 text-cyan-200" />
               Digital electronics, redesigned
             </div>
-            <h1 className="max-w-5xl text-5xl font-black leading-[0.94] tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
+            <h1 className="max-w-4xl text-4xl font-black leading-[0.96] tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
               FlipLogic
               <span className="gradient-text block">turns circuits into motion.</span>
             </h1>
-            <p className="mt-7 max-w-2xl text-base leading-8 text-white/62 md:text-lg">
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-white/62 md:text-base">
               A cinematic dark engineering studio for learning gates, memory, timing, and full circuit behavior through interactive simulations that feel immediate and alive.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link className="premium-button primary" href="/circuit-builder">
                 Launch Builder
                 <ArrowRight className="h-4 w-4" />
@@ -120,15 +120,15 @@ export default function Home() {
                 Explore Gates
               </Link>
             </div>
-            <div className="mt-8 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-6 grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 ["144hz", "motion feel"],
-                ["9", "modules"],
+                ["4", "core labs"],
                 ["R3F", "ambient scene"],
                 ["0/1", "signal truth"],
               ].map(([value, label]) => (
-                <div key={label} className="glass-panel-soft px-4 py-3">
-                  <div className="font-mono text-lg font-black text-white">{value}</div>
+                <div key={label} className="glass-panel-soft px-3 py-2.5">
+                  <div className="font-mono text-base font-black text-white">{value}</div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-white/36">{label}</div>
                 </div>
               ))}
@@ -136,11 +136,11 @@ export default function Home() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, scale: 0.96, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1 }} className="relative">
-            <div className="premium-card p-4 md:p-5">
-              <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
+            <div className="premium-card p-3 md:p-4">
+              <div className="mb-3 flex items-center justify-between border-b border-white/8 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-100">
-                    <Terminal className="h-5 w-5" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-100">
+                    <Terminal className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="text-sm font-black text-white">FlipLogic Studio</div>
@@ -150,7 +150,7 @@ export default function Home() {
                 <span className="mono-chip">AUTO CLK</span>
               </div>
               <div className="grid gap-4 lg:grid-cols-[1fr_0.82fr]">
-                <div className="canvas-grid relative h-[360px] overflow-hidden rounded-xl border border-white/10">
+                <div className="canvas-grid relative h-[310px] overflow-hidden rounded-xl border border-white/10">
                   <div className="absolute left-8 top-10 rounded-xl border border-cyan-300/28 bg-[#07111e]/88 p-4 shadow-[0_0_32px_rgba(34,211,238,0.12)]">
                     <div className="font-mono text-xs font-black text-cyan-100">INPUT A</div>
                     <div className="mt-2 h-8 w-16 rounded-lg bg-[#41f29a]/14 text-center font-mono text-xl font-black leading-8 text-[#41f29a]">1</div>
@@ -193,17 +193,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section-shell py-12 md:py-20">
+      <section className="section-shell py-10 md:py-14">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <div className="eyebrow mb-4">
               <Layers3 className="h-3.5 w-3.5 text-purple-200" />
               Product modules
             </div>
-            <h2 className="max-w-3xl text-3xl font-black tracking-tight text-white md:text-5xl">One coherent studio for every digital logic workflow.</h2>
+            <h2 className="max-w-3xl text-2xl font-black tracking-tight text-white md:text-4xl">One coherent studio for every digital logic workflow.</h2>
           </div>
-          <Link href="/learning" className="premium-button w-fit">
-            View learning flow
+          <Link href="/circuit-builder" className="premium-button w-fit">
+            Open workspace
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -228,13 +228,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section-shell grid gap-5 py-12 md:grid-cols-[0.8fr_1.2fr] md:py-20">
+      <section className="section-shell grid gap-5 py-10 md:grid-cols-[0.8fr_1.2fr] md:py-14">
         <div>
           <div className="eyebrow mb-4">
             <Gauge className="h-3.5 w-3.5 text-cyan-200" />
             Why FlipLogic
           </div>
-          <h2 className="text-3xl font-black tracking-tight text-white md:text-5xl">Built like a professional tool, taught like a visual lab.</h2>
+          <h2 className="text-2xl font-black tracking-tight text-white md:text-4xl">Built like a professional tool, taught like a visual lab.</h2>
           <p className="mt-5 text-sm leading-7 text-white/54 md:text-base">
             The old interface treated each lesson as a static panel. This redesign turns the platform into a spatial simulator with consistent controls, stronger hierarchy, and feedback that makes binary behavior feel physical.
           </p>
@@ -250,7 +250,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section-shell py-12 md:py-20">
+      <section className="section-shell py-10 md:py-14">
         <div className="premium-card overflow-hidden p-5 md:p-8">
           <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div>
@@ -258,7 +258,7 @@ export default function Home() {
                 <BookOpen className="h-3.5 w-3.5 text-amber-200" />
                 Learning flow
               </div>
-              <h2 className="max-w-2xl text-3xl font-black tracking-tight text-white md:text-5xl">From first truth table to complete sequential system.</h2>
+              <h2 className="max-w-2xl text-2xl font-black tracking-tight text-white md:text-4xl">From first truth table to complete sequential system.</h2>
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="mono-chip">
@@ -283,7 +283,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section-shell grid gap-4 py-12 md:grid-cols-3 md:py-20">
+      <section className="section-shell grid gap-4 py-10 md:grid-cols-3 md:py-14">
         {["The circuit builder finally feels like a real engineering surface.", "The timing diagrams make edge-triggered behavior click instantly.", "This is the kind of lab I wish I had before HDL."].map((quote, index) => (
           <div key={quote} className="glass-panel p-5">
             <div className="mb-4 flex gap-1 text-amber-200">{"*****"}</div>
@@ -293,11 +293,11 @@ export default function Home() {
         ))}
       </section>
 
-      <section className="section-shell pb-24 pt-12 md:pb-28">
+      <section className="section-shell pb-20 pt-10 md:pb-24">
         <div className="grid gap-4 md:grid-cols-[1fr_1.1fr]">
           <div>
             <div className="eyebrow mb-4">FAQ</div>
-            <h2 className="text-3xl font-black tracking-tight text-white md:text-5xl">Designed for depth, still fast on the glass.</h2>
+            <h2 className="text-2xl font-black tracking-tight text-white md:text-4xl">Designed for depth, still fast on the glass.</h2>
           </div>
           <div className="space-y-3">
             {[

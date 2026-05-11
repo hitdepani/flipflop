@@ -155,15 +155,15 @@ a {
 
 .section-shell {
   position: relative;
-  width: min(1480px, calc(100vw - 32px));
+  width: min(1280px, calc(100vw - 32px));
   margin: 0 auto;
 }
 
 .page-shell {
   position: relative;
-  width: min(1480px, calc(100vw - 28px));
+  width: min(1280px, calc(100vw - 28px));
   margin: 0 auto;
-  padding: 116px 0 52px;
+  padding: 86px 0 34px;
 }
 
 .eyebrow {
@@ -220,6 +220,13 @@ a {
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
+.premium-button.compact {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
 .premium-button:hover {
   transform: translateY(-2px);
   border-color: rgba(34, 211, 238, 0.36);
@@ -238,8 +245,8 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   color: rgba(226, 232, 240, 0.72);
@@ -256,8 +263,8 @@ a {
 
 .lab-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: 14px;
 }
 
 .signal-high {
@@ -404,7 +411,7 @@ a {
 
   .page-shell {
     width: min(100vw - 22px, 1480px);
-    padding-top: 86px;
+    padding-top: 74px;
     padding-bottom: 92px;
   }
 
@@ -413,8 +420,9 @@ a {
   }
 
   .premium-button {
-    min-height: 42px;
+    min-height: 40px;
     padding: 0 14px;
+    font-size: 13px;
   }
 
   .truth-table th,

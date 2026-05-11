@@ -22,6 +22,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 type Bit = 0 | 1;
 type ComponentType = "INPUT" | "OUTPUT" | "CLOCK" | "AND" | "OR" | "NOT" | "NAND" | "NOR" | "XOR" | "D-FF" | "JK-FF";
@@ -105,6 +106,7 @@ export default function CircuitBuilder() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [search, setSearch] = useState("");
   const [running, setRunning] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(true);
   const [context, setContext] = useState<{ x: number; y: number; id: string } | null>(null);
   const [history, setHistory] = useState<Array<{ nodes: Node[]; wires: Wire[] }>>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -202,14 +204,14 @@ export default function CircuitBuilder() {
 
   return (
     <section className="page-shell page-transition">
-      <div className="mb-6 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+      <div className="mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
           <div className="eyebrow mb-4">
             <CircuitBoard className="h-3.5 w-3.5 text-cyan-200" />
             Circuit Builder
           </div>
-          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">A node canvas for building logic systems.</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+          <h1 className="max-w-4xl text-3xl font-black tracking-tight text-white md:text-5xl">A node canvas for building logic systems.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/54">
             Add components, wire outputs to inputs, multi-select nodes, pan the workspace, zoom the grid, and watch active signals glow.
           </p>
         </div>
@@ -224,8 +226,17 @@ export default function CircuitBuilder() {
         </div>
       </div>
 
-      <div className="grid min-h-[720px] gap-4 xl:grid-cols-[280px_1fr_300px]">
-        <aside className="premium-card p-4">
+      <div className="grid min-h-[650px] gap-3 xl:grid-cols-[var(--builder-cols)]" style={{ "--builder-cols": `${paletteOpen ? "260px" : "62px"} minmax(0,1fr) 280px` } as CSSProperties}>
+        <aside className="premium-card p-3">
+          <button className="icon-button mb-3 xl:hidden" onClick={() => setPaletteOpen((value) => !value)} aria-label="Toggle components">
+            <Plus className="h-4 w-4" />
+          </button>
+          <button className="mb-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-bold text-white/60 xl:flex" onClick={() => setPaletteOpen((value) => !value)}>
+            <Plus className="h-3.5 w-3.5" />
+            {paletteOpen ? "Collapse" : ""}
+          </button>
+          {paletteOpen && (
+          <>
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
             <Search className="h-4 w-4 text-white/36" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search components" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/28" />
@@ -253,9 +264,11 @@ export default function CircuitBuilder() {
               </div>
             ))}
           </div>
+          </>
+          )}
         </aside>
 
-        <div className="premium-card overflow-hidden p-3">
+        <div className="premium-card overflow-hidden p-2.5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-2">
               <button className="icon-button" onClick={() => setZoom((value) => Math.max(0.55, value - 0.1))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></button>
@@ -271,7 +284,7 @@ export default function CircuitBuilder() {
           </div>
           <div
             ref={canvasRef}
-            className="canvas-grid relative h-[620px] overflow-hidden rounded-2xl border border-white/10"
+            className="canvas-grid relative h-[560px] overflow-hidden rounded-2xl border border-white/10 md:h-[610px]"
             onMouseMove={(event) => {
               if (!dragging) return;
               const point = canvasPoint(event);
@@ -363,9 +376,9 @@ export default function CircuitBuilder() {
               )}
             </div>
 
-            <div className="absolute bottom-4 right-4 h-32 w-48 rounded-xl border border-white/10 bg-[#050812]/84 p-2 backdrop-blur-xl">
+            <div className="absolute bottom-3 right-3 h-28 w-40 rounded-xl border border-white/10 bg-[#050812]/84 p-2 backdrop-blur-xl">
               <div className="mb-1 font-mono text-[10px] font-black uppercase tracking-widest text-white/34">minimap</div>
-              <div className="relative h-24 overflow-hidden rounded-lg bg-white/[0.035]">
+              <div className="relative h-20 overflow-hidden rounded-lg bg-white/[0.035]">
                 {nodes.map((node) => (
                   <span key={node.id} className="absolute h-2 w-4 rounded-sm" style={{ left: node.x / 9, top: node.y / 9, background: colorFor(node.type), opacity: 0.8 }} />
                 ))}
@@ -374,7 +387,7 @@ export default function CircuitBuilder() {
           </div>
         </div>
 
-        <aside className="grid gap-4">
+        <aside className="grid gap-3">
           <div className="premium-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Bot className="h-4 w-4 text-amber-200" />

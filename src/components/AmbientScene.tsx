@@ -135,9 +135,12 @@ function Scene() {
 function AmbientScene() {
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <Canvas camera={{ position: [0, 0, 6.2], fov: 48 }} dpr={[1, 1.6]} performance={{ min: 0.5 }}>
-        <Scene />
-      </Canvas>
+      <div className="hidden h-full md:block">
+        <Canvas camera={{ position: [0, 0, 6.2], fov: 48 }} dpr={[1, 1.35]} performance={{ min: 0.5 }}>
+          <Scene />
+        </Canvas>
+      </div>
+      <div className="absolute inset-0 md:hidden bg-[radial-gradient(circle_at_35%_20%,rgba(34,211,238,0.24),transparent_18rem),radial-gradient(circle_at_80%_10%,rgba(167,139,250,0.2),transparent_16rem)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,4,10,0.25)_42%,rgba(2,4,10,0.88)_100%)]" />
       <div className="noise-mask" />
     </div>

@@ -144,14 +144,14 @@ export default function GateLab() {
 
   return (
     <section className="page-shell page-transition">
-      <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+      <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="eyebrow mb-4">
             <Cpu className="h-3.5 w-3.5 text-cyan-200" />
             Logic Gates Playground
           </div>
-          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">Signal behavior you can see, not memorize.</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+          <h1 className="max-w-4xl text-3xl font-black tracking-tight text-white md:text-5xl">Signal behavior you can see, not memorize.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/54">
             Toggle inputs, change gate families, and watch truth tables, wiring, expressions, and explanations update together.
           </p>
         </div>
@@ -161,7 +161,7 @@ export default function GateLab() {
         </div>
       </div>
 
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
         {(Object.keys(GATES) as GateType[]).map((item) => (
           <button
             key={item}
@@ -170,7 +170,7 @@ export default function GateLab() {
               setA(item === "XOR" ? 1 : 0);
               setB(0);
             }}
-            className={`rounded-xl border px-4 py-3 font-mono text-xs font-black transition ${
+            className={`rounded-xl border px-3.5 py-2.5 font-mono text-xs font-black transition ${
               gate === item ? "border-cyan-300/34 bg-cyan-300/12 text-white" : "border-white/10 bg-white/[0.035] text-white/44 hover:text-white"
             }`}
             style={{ boxShadow: gate === item ? `0 0 28px ${GATES[item].color}22` : undefined }}
@@ -181,26 +181,26 @@ export default function GateLab() {
       </div>
 
       <div className="lab-grid">
-        <div className="premium-card min-h-[540px] p-4 md:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="premium-card min-h-[460px] p-4 md:p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="font-mono text-xs font-black uppercase tracking-widest text-white/36">active diagram</div>
-              <h2 className="mt-1 text-2xl font-black text-white">{gate} Gate</h2>
+              <h2 className="mt-1 text-xl font-black text-white">{gate} Gate</h2>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-center">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-center">
               <div className="font-mono text-xs font-bold text-white/36">OUTPUT Y</div>
               <AnimatePresence mode="wait">
-                <motion.div key={output} initial={{ y: 10, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -10, opacity: 0 }} className={`font-mono text-4xl font-black ${output ? "signal-high" : "signal-low"}`}>
+                <motion.div key={output} initial={{ y: 10, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -10, opacity: 0 }} className={`font-mono text-3xl font-black ${output ? "signal-high" : "signal-low"}`}>
                   {output}
                 </motion.div>
               </AnimatePresence>
             </div>
           </div>
-          <div className="canvas-grid relative h-[320px] overflow-hidden rounded-2xl border border-white/10">
+          <div className="canvas-grid relative h-[260px] overflow-hidden rounded-2xl border border-white/10 md:h-[300px]">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_32rem)]" />
             <GateShape gate={gate} color={meta.color} a={a} b={b} output={output} />
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Toggle label="Input A" value={a} onChange={setA} />
             {gate !== "NOT" && <Toggle label="Input B" value={b} onChange={setB} />}
           </div>
@@ -261,7 +261,7 @@ export default function GateLab() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
         {["Input switches use spring motion", "Output glow follows active high", "Truth row locks to current state"].map((item) => (
           <div key={item} className="glass-panel-soft p-4">
             <Layers3 className="mb-3 h-4 w-4 text-cyan-200" />

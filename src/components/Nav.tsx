@@ -5,24 +5,18 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  BookOpen,
-  Boxes,
   BrainCircuit,
   CircuitBoard,
   Command,
   Cpu,
-  FlaskConical,
-  Gamepad2,
   GitBranch,
   Home,
   Menu,
   MoonStar,
-  PanelRightOpen,
   Search,
   Settings,
   Sparkles,
   X,
-  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -32,10 +26,6 @@ const navItems = [
   { href: "/flip-flops", label: "Flip-Flops", icon: GitBranch, key: "F" },
   { href: "/circuit-builder", label: "Builder", icon: CircuitBoard, key: "B" },
   { href: "/timing-diagrams", label: "Timing", icon: Activity, key: "T" },
-  { href: "/components", label: "Library", icon: Boxes, key: "L" },
-  { href: "/learning", label: "Learn", icon: BookOpen, key: "E" },
-  { href: "/challenges", label: "Practice", icon: Gamepad2, key: "P" },
-  { href: "/settings", label: "Settings", icon: Settings, key: "," },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -71,29 +61,29 @@ export default function Nav() {
         initial={{ y: -28, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.55, ease: [0.21, 1, 0.23, 1] }}
-        className="fixed left-0 right-0 top-0 z-50 px-3 pt-3 md:px-5"
+        className="fixed left-0 right-0 top-0 z-50 px-3 pt-2 md:px-5"
       >
-        <div className="mx-auto flex h-16 max-w-[1480px] items-center justify-between rounded-2xl border border-white/10 bg-[#050812]/74 px-3 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:px-4">
+        <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between rounded-2xl border border-white/10 bg-[#050812]/78 px-2.5 shadow-[0_14px_54px_rgba(0,0,0,0.34)] backdrop-blur-2xl md:px-3">
           <Link href="/" className="group flex items-center gap-3" onClick={() => setOpen(false)}>
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200 shadow-[0_0_34px_rgba(34,211,238,0.16)]">
-              <BrainCircuit className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#41f29a] shadow-[0_0_14px_rgba(65,242,154,0.8)]" />
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.13)]">
+              <BrainCircuit className="h-4 w-4" />
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[#41f29a] shadow-[0_0_12px_rgba(65,242,154,0.8)]" />
             </div>
             <div>
-              <div className="text-[15px] font-black tracking-tight text-white">FlipLogic</div>
-              <div className="hidden text-[10px] font-bold uppercase tracking-[0.22em] text-white/34 sm:block">signal studio</div>
+              <div className="text-[14px] font-black tracking-tight text-white">FlipLogic</div>
+              <div className="hidden text-[9px] font-bold uppercase tracking-[0.18em] text-white/34 sm:block">signal studio</div>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 rounded-2xl border border-white/8 bg-white/[0.035] p-1 lg:flex">
-            {navItems.slice(0, 8).map((item) => {
+          <nav className="hidden items-center gap-0.5 rounded-xl border border-white/8 bg-white/[0.035] p-1 lg:flex">
+            {navItems.map((item) => {
               const Icon = item.icon;
               const activeItem = isActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition ${
+                  className={`relative flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold transition ${
                     activeItem ? "text-white" : "text-white/48 hover:text-white"
                   }`}
                 >
@@ -103,7 +93,7 @@ export default function Nav() {
                       className="absolute inset-0 rounded-xl border border-cyan-300/20 bg-cyan-300/10 shadow-[0_0_26px_rgba(34,211,238,0.14)]"
                     />
                   )}
-                  <Icon className="relative h-4 w-4" />
+                  <Icon className="relative h-3.5 w-3.5" />
                   <span className="relative">{item.label}</span>
                 </Link>
               );
@@ -120,36 +110,36 @@ export default function Nav() {
             <button className="icon-button lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </button>
-            <button className="premium-button hidden xl:inline-flex" onClick={() => setPalette(true)}>
+            <button className="premium-button compact hidden xl:inline-flex" onClick={() => setPalette(true)}>
               <Command className="h-4 w-4" />
-              Command
+              Cmd K
             </button>
           </div>
         </div>
       </motion.header>
 
-      <aside className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-2 rounded-2xl border border-white/10 bg-[#050812]/68 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl xl:flex">
-        {navItems.slice(1, 8).map((item) => {
+      <aside className="fixed left-3 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-1.5 rounded-2xl border border-white/10 bg-[#050812]/68 p-1.5 shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl 2xl:flex">
+        {navItems.slice(1).map((item) => {
           const Icon = item.icon;
           const activeItem = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`group relative flex h-11 w-11 items-center justify-center rounded-xl transition ${
+              className={`group relative flex h-10 w-10 items-center justify-center rounded-xl transition ${
                 activeItem ? "bg-cyan-300/12 text-cyan-100" : "text-white/42 hover:bg-white/8 hover:text-white"
               }`}
               title={item.label}
             >
               {activeItem && <span className="absolute inset-0 rounded-xl border border-cyan-300/25 shadow-[0_0_22px_rgba(34,211,238,0.16)]" />}
-              <Icon className="h-4.5 w-4.5" />
+              <Icon className="h-4 w-4" />
             </Link>
           );
         })}
       </aside>
 
       <nav className="fixed bottom-3 left-3 right-3 z-50 grid grid-cols-5 gap-1 rounded-2xl border border-white/10 bg-[#050812]/86 p-1 shadow-[0_18px_70px_rgba(0,0,0,0.42)] backdrop-blur-2xl md:hidden">
-        {[navItems[0], navItems[1], navItems[3], navItems[4], navItems[7]].map((item) => {
+        {[navItems[0], navItems[1], navItems[2], navItems[3], navItems[4]].map((item) => {
           const Icon = item.icon;
           const activeItem = isActive(pathname, item.href);
           return (
@@ -221,7 +211,7 @@ export default function Nav() {
               <div className="flex items-center gap-3 border-b border-white/8 px-4 py-4">
                 <Command className="h-5 w-5 text-cyan-200" />
                 <div className="flex-1 text-sm font-semibold text-white/72">Jump to a FlipLogic workspace</div>
-                <span className="mono-chip">Ctrl K</span>
+        <span className="mono-chip">Ctrl K</span>
               </div>
               <div className="grid gap-2 p-3 sm:grid-cols-2">
                 {navItems.map((item) => {

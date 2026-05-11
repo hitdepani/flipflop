@@ -62,7 +62,7 @@ function WaveTrack({ signal, zoom, cursor }: { signal: Signal; zoom: number; cur
         <span className="font-mono text-xs font-black" style={{ color: signal.color }}>{signal.name}</span>
       </div>
       <div className="overflow-x-auto pl-24">
-        <svg viewBox={`0 0 ${width} 70`} width={width} height="70" className="block">
+        <svg viewBox={`0 0 ${width} 64`} width={width} height="64" className="block">
           {signal.bits.map((bit, index) => {
             const x = index * step + 16;
             const y = bit ? 16 : 52;
@@ -76,7 +76,7 @@ function WaveTrack({ signal, zoom, cursor }: { signal: Signal; zoom: number; cur
               </g>
             );
           })}
-          <motion.rect x={cursor * step + 16} y="0" width="3" height="70" fill="#ffffff" opacity="0.42" />
+          <motion.rect x={cursor * step + 16} y="0" width="3" height="64" fill="#ffffff" opacity="0.42" />
         </svg>
       </div>
     </div>
@@ -130,14 +130,14 @@ export default function TimingDiagram() {
 
   return (
     <section className="page-shell page-transition">
-      <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+      <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="eyebrow mb-4">
             <Waves className="h-3.5 w-3.5 text-amber-200" />
             Timing Diagram Visualizer
           </div>
-          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">Oscilloscope-grade waveforms for sequential logic.</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/54 md:text-base">
+          <h1 className="max-w-4xl text-3xl font-black tracking-tight text-white md:text-5xl">Oscilloscope-grade waveforms for sequential logic.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/54">
             Define input streams, zoom the timeline, scrub the cursor, and export clean waveforms for notes or review.
           </p>
         </div>
@@ -151,9 +151,9 @@ export default function TimingDiagram() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[330px_1fr]">
-        <aside className="grid gap-4">
-          <div className="premium-card p-4">
+      <div className="grid gap-3 lg:grid-cols-[300px_1fr]">
+        <aside className="grid gap-3">
+          <div className="premium-card p-3">
             <div className="mb-3 flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-cyan-200" />
               <h3 className="font-black text-white">Controls</h3>
@@ -163,7 +163,7 @@ export default function TimingDiagram() {
                 <button key={item} onClick={() => setType(item)} className={`rounded-xl border px-3 py-2 font-mono text-sm font-black ${type === item ? "border-cyan-300/34 bg-cyan-300/12 text-white" : "border-white/10 bg-white/[0.035] text-white/48"}`}>{item}</button>
               ))}
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2.5">
               <label className="block">
                 <span className="mb-1 block font-mono text-xs font-black uppercase tracking-widest text-white/34">{type === "D" ? "D" : type === "T" ? "T" : type === "SR" ? "S" : "J"} sequence</span>
                 <input value={seqA} onChange={(event) => setSeqA(event.target.value.replace(/[^01]/g, ""))} className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-cyan-100 outline-none" />
@@ -181,7 +181,7 @@ export default function TimingDiagram() {
             </div>
           </div>
 
-          <div className="premium-card p-4">
+          <div className="premium-card p-3">
             <h3 className="mb-3 font-black text-white">Presets</h3>
             <div className="space-y-2">
               {PRESETS.map((preset) => (
@@ -193,12 +193,12 @@ export default function TimingDiagram() {
             </div>
           </div>
 
-          <div className="glass-panel p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
+          <div className="glass-panel p-3">
+            <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
               <Sparkles className="h-4 w-4 text-amber-200" />
               Edge insight
             </div>
-            <p className="text-sm leading-6 text-white/52">Q updates only on rising CLK edges. Scrub or step the cursor to line up input state with output transitions.</p>
+            <p className="text-sm leading-6 text-white/52">Q updates only on rising CLK edges. Step the cursor to line up input state with output transitions.</p>
           </div>
         </aside>
 
